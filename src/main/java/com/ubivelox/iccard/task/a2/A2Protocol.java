@@ -1,0 +1,73 @@
+package com.ubivelox.iccard.task.protocol;
+
+import com.ubivelox.iccard.annotation.FieldData;
+import com.ubivelox.iccard.annotation.MaskData;
+import com.ubivelox.iccard.common.Constants;
+import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.ErrorCode;
+import lombok.*;
+
+import java.util.HashMap;
+
+
+@Getter
+public class A2 {
+    @Getter
+    @Setter
+    @ToString
+    public static class Request implements HmcProtocol.Request {
+
+//        @ToString.Exclude
+        @FieldData(fieldName = "TRN", length = 16)
+        private String trn;
+        @FieldData(fieldName = "KDD", length = 20)
+        private String kdd;
+        @FieldData(fieldName = "KI", length = 4)
+        private String ki;
+        @FieldData(fieldName = "SC", length = 4)
+        private String sc;
+        @FieldData(fieldName = "CRN", length = 12)
+        private String crn;
+        @FieldData(fieldName = "CC", length = 16)
+        private String cc;
+
+        public boolean isScpType01() {
+            String scpType = this.getKi().substring(2, 4);
+
+            if (!scpType.equals("01") && !scpType.equals("02")) {
+                throw new BusinessException(ErrorCode.INVALID_SCP_TYPE);
+            }
+
+            if (scpType.equals("01") ) {
+                this.crn = sc + crn;
+                this.sc = "";
+            }
+            return scpType.equals("01");
+        }
+
+        @Override
+        public HmcProtocol.Response generateResponse(HmcProtocol.Request request, String resCode, HashMap<String, String> resultMap) {
+            return new Response(resCode, resultMap.get(Constants.AUTH_APDU), resultMap.get(Constants.PUT_APDU));
+        }
+
+        @Override
+        public HmcProtocol.Response generateError(String resCode) {
+            return new Response(resCode, "errorTest", "");
+        }
+    }
+
+    @ToString
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Response implements HmcProtocol.Response {
+        @FieldData(fieldName = "응답코드", length = 8)
+        private String resCode;
+        @MaskData(start = 0, end = 26)
+        @FieldData(fieldName = "인증 APDU", length = 42)
+        private String authApdu;
+        @FieldData(fieldName = "CMK 변경 APDU", length = 144)
+        private String putApdu;
+    }
+}

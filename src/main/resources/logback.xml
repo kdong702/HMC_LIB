@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+	<include resource="org/springframework/boot/logging/logback/defaults.xml" />
+	
+	<include resource="org/springframework/boot/logging/logback/console-appender.xml" />
+
+	<property name="LOG_PATTERN" value="%-3level [%d{yyyy-MM-dd HH:mm:ss.SSS}] %logger{5} - %msg %n" />
+	
+	<!-- FILE Appender -->
+	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>./log/cas</file>
+		<!-- 일자별로 로그파일 적용하기 --> 
+		<!-- 일자별 로그파일 xml설정을 해주면 일별로 로그파일이 기록으로 남는다. -->
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<!-- .gz,.zip 등을 넣으면 자동 일자별 로그파일 압축 -->
+			<fileNamePattern>./log/cas_%d{yyyyMMdd}_%i.log.zip</fileNamePattern>
+			<maxHistory>30</maxHistory> <!-- 일자별 백업파일의 보관기간 -->
+			<timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+				<maxFileSize>100MB</maxFileSize>
+			</timeBasedFileNamingAndTriggeringPolicy>
+		</rollingPolicy>
+		<encoder>
+			 <pattern>${LOG_PATTERN}</pattern>
+		</encoder>
+	</appender>
+
+	<!-- 	Console에 로그를 찍기위해 사용 append 설정은 STDOUT 이라는 변수명으로 저장-->
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<layout class="ch.qos.logback.classic.PatternLayout">
+			 <pattern>${LOG_PATTERN}</pattern>
+		</layout>
+	</appender>
+
+    <logger name="com.ubivelox.iccard" level="INFO"/>
+
+	<root level="INFO">
+		<appender-ref ref="STDOUT" />
+		<appender-ref ref="FILE" />
+	</root>
+	
+</configuration>
