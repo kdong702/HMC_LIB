@@ -1,4 +1,4 @@
-package com.ubivelox.iccard.task;
+package com.ubivelox.iccard.task.a2;
 
 
 import com.ubivelox.iccard.annotation.TaskData;
@@ -6,30 +6,208 @@ import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
 import com.ubivelox.iccard.exception.BusinessException;
 import com.ubivelox.iccard.exception.ErrorCode;
-import com.ubivelox.iccard.task.protocol.A2;
-import com.ubivelox.iccard.task.protocol.HmcProtocol;
+import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
+import com.ubivelox.iccard.task.HmcSubTask;
+import com.ubivelox.iccard.task.HmcProtocol;
+import com.ubivelox.iccard.util.ByteUtils;
+import com.ubivelox.iccard.util.HexUtils;
+import org.apache.commons.lang3.StringUtils;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 import java.util.HashMap;
 
 @TaskData(taskCd = "A2", taskName = "CARD MANAGER 인증/Put Key")
-public class A2Task extends SubTask {
+public class A2Task extends HmcSubTask {
+
 
     @Override
     public HmcProtocol.Response doLogic(HmcProtocol.Request request, long sessionId, String transId) {
         CustomLog log = new CustomLog(transId);
         try {
+            long initKeyId = findObj(sessionId, Constants.INIT_KEY_LABEL, transId);
+            long bankKeyId = findObj(sessionId, Constants.BANK_KEY_LABEL, transId);
+
             HashMap<String, String> resultMap = new HashMap();
-            A2.Request a2Req = (A2.Request) request;
+            A2Protocol.Request a2Req = (A2Protocol.Request) request;
             if (a2Req.isScpType01()) {
                 log.info("SCP01 Type");
                 log.info("request : {}", a2Req);
+
+                String kdd = a2Req.getKdd();
+                SecretKeySpec encDkKey = makeDkKey(sessionId, kdd, initKeyId, log, 1);
+                log.info("encDkKey : {}", HexUtils.toHexString(encDkKey.getEncoded()));
+                String crn = a2Req.getCrn();
+                String trn = a2Req.getTrn();
+                // Todo sessionKey 생성 방식 다름
+                SecretKeySpec encSkKey = makeSessionKey(crn, trn, encDkKey, log);
+                log.info("encSkKey : {}", HexUtils.toHexString(encSkKey.getEncoded()));
+
+                // TODO CC Data 생성 다름
+                byte[] cc = makeCcData(trn, crn, log, encSkKey);
+                log.info("cc = {}", HexUtils.toHexString(cc));
+                byte[] ccMac = HexUtils.findLastBlockData(cc, IPkcsMechanism.DES3_CBC.getBlockSize(), 8);
+                log.info("ccMac = {}", HexUtils.toHexString(ccMac));
+
+                //TODO 한번 더 검증하는걸 같은걸 두번하는걸로 해야하나?
+                if (!StringUtils.equalsAnyIgnoreCase(a2Req.getCc(), HexUtils.toHexString(ccMac))) {
+                    log.info("INIT_KEY 검증 실패 요청 CC= [{}], ccMac =[{}]", a2Req.getCc(), HexUtils.toHexString(ccMac));
+                    // 은행키 재시도
+                    encDkKey = makeDkKey(sessionId, kdd, bankKeyId, log, 1);
+                    log.info("BANK_KEY encDkKey : {}", HexUtils.toHexString(encDkKey.getEncoded()));
+                    encSkKey = makeSessionKey(crn, trn, encDkKey, log);
+                    log.info("BANK_KEY encSkKey : {}", HexUtils.toHexString(encSkKey.getEncoded()));
+                    cc = makeCcData(trn, crn, log, encSkKey);
+                    log.info("BANK_KEY cc = {}", HexUtils.toHexString(cc));
+                    ccMac = HexUtils.findLastBlockData(cc, IPkcsMechanism.DES3_CBC.getBlockSize(), 8);
+                    log.info("BANK_KEY ccMac = {}", HexUtils.toHexString(ccMac));
+
+                    if (!StringUtils.equalsAnyIgnoreCase(a2Req.getCc(), HexUtils.toHexString(ccMac))) {
+                        log.info("BANK_KEY 검증 실패 요청 CC= [{}], ccMac =[{}]", a2Req.getCc(), HexUtils.toHexString(ccMac));
+                        throw new BusinessException(ErrorCode.AUTH_FAIL);
+                    }
+                    initKeyId = bankKeyId;
+                }
+                // TODO CC2 Data 생성 순서가 다름 crn, trn -> trn, crn
+                byte[] cc2 = makeCcData(crn, trn, log, encSkKey);
+                log.info("cc2 = {}", HexUtils.toHexString(cc2));
+
+                byte[] cc2Mac = HexUtils.findLastBlockData(cc2, IPkcsMechanism.DES3_CBC.getBlockSize(), 8);
+                log.info("cc2Mac = {}", HexUtils.toHexString(cc2Mac));
+
+                SecretKeySpec macDkKey = makeDkKey(sessionId, kdd, initKeyId, log, 2);
+                log.info("macDkKey : {}", HexUtils.toHexString(macDkKey.getEncoded()));
+                SecretKeySpec macSkKey = makeSessionKey(crn, trn, macDkKey, log);
+                log.info("macSkKey : {}", HexUtils.toHexString(macSkKey.getEncoded()));
+
+                // Todo mac 생성 방식 다름
+                byte[] macApdu = makeMacWithApdu(macSkKey, cc2Mac, log, 1);
+                log.info("macApdu[{}] = {}",macApdu.length, HexUtils.toHexString(macApdu));
+                resultMap.put(Constants.AUTH_APDU, HexUtils.toHexString(macApdu));
+
+                SecretKeySpec kekDkKey = makeDkKey(sessionId, kdd, initKeyId, log, 3);
+                log.info("kekDkKey : {}", HexUtils.toHexString(kekDkKey.getEncoded()));
+                // TODO kekSkKey 생성안함
+//                SecretKeySpec kekSkKey = makeSessionKey(crn, trn, kekDkKey, log);
+//                log.info("kekSkKey : {}", HexUtils.toHexString(kekSkKey.getEncoded()));
+
+                SecretKeySpec encBankDkKey = makeDkKey(sessionId, kdd, bankKeyId, log, 1);
+                SecretKeySpec macBankDkKey = makeDkKey(sessionId, kdd, bankKeyId, log, 2);
+                SecretKeySpec kekBankDkKey = makeDkKey(sessionId, kdd, bankKeyId, log, 3);
+                log.info("encBankDkKey : {}", HexUtils.toHexString(encBankDkKey.getEncoded()));
+                log.info("macBankDkKey : {}", HexUtils.toHexString(macBankDkKey.getEncoded()));
+                log.info("kekBankDkKey : {}", HexUtils.toHexString(kekBankDkKey.getEncoded()));
+
+                // TODO kekSkKey 대신 kekDkKey 로 암호화 함.
+                byte[] encBankDk = encryptJce(encBankDkKey.getEncoded(), IPkcsMechanism.DES3_ECB, kekDkKey, Constants.NoPadding);
+                byte[] macBankDk = encryptJce(macBankDkKey.getEncoded(), IPkcsMechanism.DES3_ECB, kekDkKey, Constants.NoPadding);
+                byte[] kekBankDk = encryptJce(kekBankDkKey.getEncoded(), IPkcsMechanism.DES3_ECB, kekDkKey, Constants.NoPadding);
+                log.info("encBankDkValue : {}", HexUtils.toHexString(encBankDk));
+                log.info("macBankDkValue : {}", HexUtils.toHexString(macBankDk));
+                log.info("kekBankDkValue : {}", HexUtils.toHexString(kekBankDk));
+                byte[] kcv_enc = calKCV(encBankDkKey, IPkcsMechanism.DES3_ECB);
+                byte[] kcv_mac = calKCV(macBankDkKey, IPkcsMechanism.DES3_ECB);
+                byte[] kcv_kek = calKCV(kekBankDkKey, IPkcsMechanism.DES3_ECB);
+                log.info("kcv_enc : {}", HexUtils.toHexString(kcv_enc));
+                log.info("kcv_mac : {}", HexUtils.toHexString(kcv_mac));
+                log.info("kcv_kek : {}", HexUtils.toHexString(kcv_kek));
+                String kv = a2Req.getKv();
+                // TODO 8010 대신 8110
+                String putApdu = "80D8" + kv + "814301" +
+                        "8110" +HexUtils.toHexString(encBankDk).substring(0,32) +
+                        "03" + HexUtils.toHexString(kcv_enc) +
+                        "8110" + HexUtils.toHexString(macBankDk).substring(0,32) +
+                        "03" + HexUtils.toHexString(kcv_mac) +
+                        "8110" + HexUtils.toHexString(kekBankDk).substring(0,32) +
+                        "03" + HexUtils.toHexString(kcv_kek);
+                resultMap.put(Constants.PUT_APDU, putApdu);
+
             } else {
                 log.info("SCP02 Type");
                 log.info("request : {}", a2Req);
+
+                String kdd = a2Req.getKdd();
+                SecretKeySpec encDkKey = makeDkKey(sessionId, kdd, initKeyId, log, 1);
+                log.info("encDkKey : {}", HexUtils.toHexString(encDkKey.getEncoded()));
+
+                String sc = a2Req.getSc();
+                SecretKeySpec encSkKey = makeSessionKey(sc,  encDkKey, log, 1);
+                log.info("encSkKey : {}", HexUtils.toHexString(encSkKey.getEncoded()));
+                String hrn = a2Req.getTrn();
+                String crn = sc + a2Req.getCrn() ;
+                byte[] cc = makeCcData(hrn, crn, log, encSkKey);
+                log.info("cc = {}", HexUtils.toHexString(cc));
+                byte[] ccMac = HexUtils.findLastBlockData(cc, IPkcsMechanism.DES3_CBC.getBlockSize(), 8);
+                log.info("ccMac = {}", HexUtils.toHexString(ccMac));
+
+                if (!StringUtils.equalsAnyIgnoreCase(a2Req.getCc(), HexUtils.toHexString(ccMac))) {
+                    log.info("INIT_KEY 검증 실패 요청 CC= [{}], ccMac =[{}]", a2Req.getCc(), HexUtils.toHexString(ccMac));
+                    // 은행키 재시도
+                    encDkKey = makeDkKey(sessionId, kdd, bankKeyId, log, 1);
+                    log.info("BANK_KEY encDkKey : {}", HexUtils.toHexString(encDkKey.getEncoded()));
+                    encSkKey = makeSessionKey(sc,  encDkKey, log, 1);
+                    log.info("BANK_KEY encSkKey : {}", HexUtils.toHexString(encSkKey.getEncoded()));
+                    cc = makeCcData(hrn, crn, log, encSkKey);
+                    log.info("BANK_KEY cc = {}", HexUtils.toHexString(cc));
+                    ccMac = HexUtils.findLastBlockData(cc, IPkcsMechanism.DES3_CBC.getBlockSize(), 8);
+                    log.info("BANK_KEY ccMac = {}", HexUtils.toHexString(ccMac));
+
+                    if (!StringUtils.equalsAnyIgnoreCase(a2Req.getCc(), HexUtils.toHexString(ccMac))) {
+                        log.info("BANK_KEY 검증 실패 요청 CC= [{}], ccMac =[{}]", a2Req.getCc(), HexUtils.toHexString(ccMac));
+                        throw new BusinessException(ErrorCode.AUTH_FAIL);
+                    }
+                    initKeyId = bankKeyId;
+                }
+
+                byte[] cc2 = makeCcData(crn, hrn, log, encSkKey);
+                log.info("cc2 = {}", HexUtils.toHexString(cc2));
+                byte[] cc2Mac = HexUtils.findLastBlockData(cc2, IPkcsMechanism.DES3_CBC.getBlockSize(), 8);
+                log.info("cc2Mac = {}", HexUtils.toHexString(cc2Mac));
+
+                SecretKeySpec macDkKey = makeDkKey(sessionId, kdd, initKeyId, log, 2);
+                log.info("macDkKey : {}", HexUtils.toHexString(macDkKey.getEncoded()));
+                SecretKeySpec macSkKey = makeSessionKey(sc,  macDkKey, log, 2);
+                log.info("macSkKey : {}", HexUtils.toHexString(macSkKey.getEncoded()));
+                byte[] macApdu = makeMacWithApdu(macSkKey, cc2Mac, log, 2);
+                log.info("macApdu[{}] = {}",macApdu.length, HexUtils.toHexString(macApdu));
+                resultMap.put(Constants.AUTH_APDU, HexUtils.toHexString(macApdu));
+
+                SecretKeySpec kekDkKey = makeDkKey(sessionId, kdd, initKeyId, log, 3);
+                log.info("kekDkKey : {}", HexUtils.toHexString(kekDkKey.getEncoded()));
+                SecretKeySpec kekSkKey = makeSessionKey(sc,  kekDkKey, log, 3);
+                log.info("kekSkKey : {}", HexUtils.toHexString(kekSkKey.getEncoded()));
+
+
+                SecretKeySpec encBankDkKey = makeDkKey(sessionId, kdd, bankKeyId, log, 1);
+                SecretKeySpec macBankDkKey = makeDkKey(sessionId, kdd, bankKeyId, log, 2);
+                SecretKeySpec kekBankDkKey = makeDkKey(sessionId, kdd, bankKeyId, log, 3);
+                log.info("encBankDkKey : {}", HexUtils.toHexString(encBankDkKey.getEncoded()));
+                log.info("macBankDkKey : {}", HexUtils.toHexString(macBankDkKey.getEncoded()));
+                log.info("kekBankDkKey : {}", HexUtils.toHexString(kekBankDkKey.getEncoded()));
+
+                byte[] encBankDk = encryptJce(encBankDkKey.getEncoded(), IPkcsMechanism.DES3_ECB, kekSkKey, Constants.NoPadding);
+                byte[] macBankDk = encryptJce(macBankDkKey.getEncoded(), IPkcsMechanism.DES3_ECB, kekSkKey, Constants.NoPadding);
+                byte[] kekBankDk = encryptJce(kekBankDkKey.getEncoded(), IPkcsMechanism.DES3_ECB, kekSkKey, Constants.NoPadding);
+                log.info("encBankDkValue : {}", HexUtils.toHexString(encBankDk));
+                log.info("macBankDkValue : {}", HexUtils.toHexString(macBankDk));
+                log.info("kekBankDkValue : {}", HexUtils.toHexString(kekBankDk));
+                byte[] kcv_enc = calKCV(encBankDkKey, IPkcsMechanism.DES3_ECB);
+                byte[] kcv_mac = calKCV(macBankDkKey, IPkcsMechanism.DES3_ECB);
+                byte[] kcv_kek = calKCV(kekBankDkKey, IPkcsMechanism.DES3_ECB);
+                log.info("kcv_enc : {}", HexUtils.toHexString(kcv_enc));
+                log.info("kcv_mac : {}", HexUtils.toHexString(kcv_mac));
+                log.info("kcv_kek : {}", HexUtils.toHexString(kcv_kek));
+                String kv = a2Req.getKv();
+                String putApdu = "80D8" + kv + "814301" +
+                        "8010" +HexUtils.toHexString(encBankDk).substring(0,32) +
+                        "03" + HexUtils.toHexString(kcv_enc) +
+                        "8010" + HexUtils.toHexString(macBankDk).substring(0,32) +
+                        "03" + HexUtils.toHexString(kcv_mac) +
+                        "8010" + HexUtils.toHexString(kekBankDk).substring(0,32) +
+                        "03" + HexUtils.toHexString(kcv_kek);
+                resultMap.put(Constants.PUT_APDU, putApdu);
             }
 
-            resultMap.put(Constants.AUTH_APDU, "00A4040007A000000003101000");
-            resultMap.put(Constants.PUT_APDU, "00A4040007A000000003101000");
             HmcProtocol.Response response = request.generateResponse(request, Constants.SUCCESS, resultMap);
             log.info("RESPONSE DATA {}", response);
             return response;
@@ -41,6 +219,85 @@ public class A2Task extends SubTask {
         }
     }
 
+    private byte[] makeCcData(String hrn, String crn, CustomLog log, SecretKeySpec encSkKey) {
+        byte[] cc1Data = makeCcDataWithPad(hrn, crn);
+        log.info("ccData[{}] = {}",cc1Data.length, HexUtils.toHexString(cc1Data));
+        return encryptJce(cc1Data, IPkcsMechanism.DES3_CBC, encSkKey, Constants.NoPadding);
+    }
+
+    private SecretKeySpec makeSessionKey(String sc, SecretKeySpec encDkKey, CustomLog log, int tagFlag) {
+        byte[] skData = makeSkDataWithTag(sc, tagFlag);
+        byte[] sk24Data = ByteUtils.copyArray(skData, skData, 16, 8);
+
+        log.info("skData[{}] = {}", skData.length, HexUtils.toHexString(skData));
+        log.info("sk24Data[{}] = {}", sk24Data.length, HexUtils.toHexString(sk24Data));
+
+        byte[] encSkData = encryptJce(sk24Data, IPkcsMechanism.DES3_CBC, encDkKey, Constants.NoPadding);
+        log.info("encSkData[{}] = {}", encSkData.length, HexUtils.toHexString(encSkData));
+        // TODO Chiper 는 DDES 가 없으므로 3DES 로 처리 후 가공 필요
+        byte[] encSk16Data = ByteUtils.cutByteArray(encSkData, 0, 16);
+        byte[] encSk24Data = ByteUtils.copyArray(encSk16Data, encSk16Data, 16, 8);
+        return createObjJce(encSk24Data, IPkcsMechanism.DES3_CBC);
+    }
+
+    private SecretKeySpec makeSessionKey(String crn, String hrn, SecretKeySpec encDkKey, CustomLog log) {
+        byte[] skData = makeSkDataWithCrnHrn(crn, hrn); // TODO 여기 한 부분이 다른듯?
+        byte[] sk24Data = ByteUtils.copyArray(skData, skData, 16, 8);
+
+        log.info("skData[{}] = {}", skData.length, HexUtils.toHexString(skData));
+        log.info("sk24Data[{}] = {}", sk24Data.length, HexUtils.toHexString(sk24Data));
+
+        byte[] encSkData = encryptJce(sk24Data, IPkcsMechanism.DES3_ECB, encDkKey, Constants.NoPadding);
+        log.info("encSkData[{}] = {}", encSkData.length, HexUtils.toHexString(encSkData));
+        // TODO Chiper 는 DDES 가 없으므로 3DES 로 처리 후 가공 필요
+        byte[] encSk16Data = ByteUtils.cutByteArray(encSkData, 0, 16);
+        byte[] encSk24Data = ByteUtils.copyArray(encSk16Data, encSk16Data, 16, 8);
+        return createObjJce(encSk24Data, IPkcsMechanism.DES3_ECB);
+    }
+    private SecretKeySpec makeDkKey(long sessionId, String kdd, long encKeyId, CustomLog log, int tagFlag) {
+        byte[] encDkData = makeDkDataWithTag(kdd, tagFlag);
+        log.info("encDkData[{}] = {}",encDkData.length, HexUtils.toHexString(encDkData));
+        byte[] encDk24Data = ByteUtils.copyArray(encDkData, encDkData, 16, 8);
+        return encAndMakeKey(sessionId, encKeyId, encDk24Data, IPkcsMechanism.DES2_DES3_ECB);
+    }
+
+    protected byte[] getMacPad(byte[] hostCryptogram) {
+        byte[] apdu = new byte[]{(byte) 0x84, (byte) 0x82, (byte) 0x00, (byte) 0x00, (byte) 0x10};
+        return ByteUtils.copyArrayWithPad(apdu, hostCryptogram, 16);
+    }
+
+    protected byte[] makeMacWithApdu(SecretKeySpec sessionKey, byte[] hostCryptogram,  CustomLog log, int type) {
+        byte[] apdu = new byte[]{(byte) 0x84, (byte) 0x82, (byte) 0x00, (byte) 0x00, (byte) 0x10};
+        byte[] bMacPad = getMacPad(hostCryptogram);
+        log.info("bMacPad[{}]: {}", bMacPad.length, HexUtils.toHexString(bMacPad));
+
+        if (type == 1) {
+            byte[] mac = encryptJce(bMacPad, IPkcsMechanism.DES3_CBC, sessionKey, Constants.NoPadding);
+            log.info("mac: {}", HexUtils.toHexString(mac));
+            byte[] macApdu = ByteUtils.copyArrays(apdu, hostCryptogram, HexUtils.findLastBlockData(mac, 8, 8));
+            log.info("macApdu[{}]: {}", macApdu.length, HexUtils.toHexString(macApdu));
+            return macApdu;
+        } else {
+
+            byte[] encData = new byte[8];
+            byte[] temp = new byte[8];
+            byte[] encXTemp = new byte[8];
+            SecretKeySpec aHandle = createObjJce(ByteUtils.cutByteArray(sessionKey.getEncoded(), 0, 8), IPkcsMechanism.DES_ECB);
+
+            for (int idx = 0; idx < bMacPad.length; idx += IPkcsMechanism.DES_ECB.getBlockSize()) {
+                System.arraycopy(bMacPad, idx, temp, 0, 8);
+                encXTemp = ByteUtils.xor(temp, encData);
+//            log.info("xorEncDes(), temp: {}, encXTemp={}", HexUtils.toHexString(temp), HexUtils.toHexString(encXTemp));
+                encData = encryptJce(encXTemp, IPkcsMechanism.DES_ECB, aHandle, Constants.NoPadding);
+//            log.info("xorEncDes(), tempInput: {}, outPut: {}", HexUtils.toHexString(encXTemp), HexUtils.toHexString(encData));
+            }
+            byte[] mac = encryptJce(encXTemp, IPkcsMechanism.DES3_ECB, sessionKey, Constants.NoPadding);
+            log.info("mac: {}", HexUtils.toHexString(mac));
+            byte[] macApdu = ByteUtils.copyArrays(apdu, hostCryptogram, mac);
+            log.info("macApdu[{}]: {}", macApdu.length, HexUtils.toHexString(macApdu));
+            return macApdu;
+        }
+    }
 
 //    private String makeCdolData18(Auth.Request request) {
 //        StringBuilder sb = findTag(request);

@@ -1,4 +1,4 @@
-package com.ubivelox.iccard.task.protocol;
+package com.ubivelox.iccard.task;
 
 
 import com.ubivelox.iccard.annotation.FieldData;

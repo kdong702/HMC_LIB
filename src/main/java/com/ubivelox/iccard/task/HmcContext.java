@@ -1,13 +1,10 @@
-package com.ubivelox.iccard.task.context;
+package com.ubivelox.iccard.task;
 
 
 import com.ubivelox.iccard.annotation.TaskData;
 import com.ubivelox.iccard.common.CustomLog;
 import com.ubivelox.iccard.exception.BusinessException;
 import com.ubivelox.iccard.exception.ErrorCode;
-import com.ubivelox.iccard.task.ITask;
-import com.ubivelox.iccard.task.protocol.HmcProtocol;
-import com.ubivelox.iccard.util.HexUtils;
 import com.ubivelox.iccard.util.PropertyReader;
 import com.ubivelox.iccard.util.StreamReader;
 

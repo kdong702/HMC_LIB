@@ -1,11 +1,12 @@
-package com.ubivelox.iccard.task;
+package com.ubivelox.iccard.task.b4;
 
 
 import com.ubivelox.iccard.annotation.TaskData;
 import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
 import com.ubivelox.iccard.exception.BusinessException;
-import com.ubivelox.iccard.task.protocol.HmcProtocol;
+import com.ubivelox.iccard.task.SubTask;
+import com.ubivelox.iccard.task.HmcProtocol;
 
 import java.util.HashMap;
 

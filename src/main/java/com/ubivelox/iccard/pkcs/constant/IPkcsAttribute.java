@@ -1,4 +1,4 @@
-package com.lotson.hmc.pkcs.constant;
+package com.ubivelox.iccard.pkcs.constant;
 
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;

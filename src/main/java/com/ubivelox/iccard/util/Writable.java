@@ -1,4 +1,4 @@
-package com.lotson.cas.utils;
+package com.ubivelox.iccard.util;
 
 public interface Writable {
 	void write(StreamWriter sw);

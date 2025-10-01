@@ -1,14 +1,12 @@
-package com.lotson.hmc.model;
+package com.ubivelox.iccard.pkcs;
 
 
-import com.lotson.hmc.common.Constants;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import com.ubivelox.iccard.common.Constants;
+import lombok.*;
 
 @Getter
 @Setter
+@NoArgsConstructor
 @AllArgsConstructor
 @ToString
 public class Slot {

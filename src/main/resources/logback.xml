@@ -9,7 +9,7 @@
 	
 	<!-- FILE Appender -->
 	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-		<file>./log/cas</file>
+		<file>./log/cas.log</file>
 		<!-- 일자별로 로그파일 적용하기 --> 
 		<!-- 일자별 로그파일 xml설정을 해주면 일별로 로그파일이 기록으로 남는다. -->
 		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">

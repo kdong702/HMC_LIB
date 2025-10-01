@@ -1,4 +1,4 @@
-package com.lotson.hmc.util;
+package com.ubivelox.iccard.util;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;

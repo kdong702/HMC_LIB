@@ -1,14 +1,15 @@
-package com.ubivelox.iccard.task.protocol;
+package com.ubivelox.iccard.task.c1;
 
 import com.ubivelox.iccard.annotation.FieldData;
 import com.ubivelox.iccard.common.Constants;
+import com.ubivelox.iccard.task.HmcProtocol;
 import lombok.*;
 
 import java.util.HashMap;
 
 
 @Getter
-public class C1 {
+public class C1Protocol {
     @Getter
     @Setter
     @ToString

@@ -1,4 +1,4 @@
-package com.lotson.cas.common;
+package com.ubivelox.iccard.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

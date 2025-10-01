@@ -1,4 +1,4 @@
-package com.ubivelox.iccard.task.a2;
+package com.ubivelox.iccard.task.a3;
 
 import com.ubivelox.iccard.annotation.FieldData;
 import com.ubivelox.iccard.annotation.MaskData;
@@ -12,7 +12,7 @@ import java.util.HashMap;
 
 
 @Getter
-public class A2Protocol {
+public class A3Protocol {
     @Getter
     @Setter
     @ToString

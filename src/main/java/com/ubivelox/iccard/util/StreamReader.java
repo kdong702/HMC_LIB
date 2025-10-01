@@ -1,4 +1,4 @@
-package com.lotson.cas.utils;
+package com.ubivelox.iccard.util;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,7 +20,6 @@ public class StreamReader {
 
 	public StreamReader(String data, String charset) {
 		try {
-			log.info("charset={}", charset);
 			bis = new ByteArrayInputStream(data.getBytes(charset));
 		} catch (UnsupportedEncodingException e) {
 			log.error("data.gatBytes(charset) 오류", e);
@@ -71,7 +70,7 @@ public class StreamReader {
 
 			result = new String(TEMP_BUFFER, 0, length, charset);
 		} catch (IOException e) {
-			log.error("readString 오류", e);
+			log.error("readString 오류");
 			throw new RuntimeException("readString 오류");
 		}
 		

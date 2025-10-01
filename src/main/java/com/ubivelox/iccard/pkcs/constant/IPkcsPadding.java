@@ -1,4 +1,4 @@
-package com.lotson.hmc.pkcs.constant;
+package com.ubivelox.iccard.pkcs.constant;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

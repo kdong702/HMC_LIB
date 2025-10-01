@@ -1,4 +1,4 @@
-package com.lotson.cas.utils;
+package com.ubivelox.iccard.util;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;

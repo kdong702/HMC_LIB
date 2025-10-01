@@ -1,14 +1,12 @@
-package com.lotson.hmc.pkcs;
+package com.ubivelox.iccard.pkcs;
 
 
-import com.lotson.hmc.common.Constants;
-import com.lotson.hmc.exception.BusinessException;
-import com.lotson.hmc.exception.ErrorCode;
-import com.lotson.hmc.model.Slot;
-import com.lotson.hmc.pkcs.constant.IPkcsMechanism;
-import com.lotson.hmc.pkcs.constant.ITemplate;
-
-import com.lotson.hmc.util.HexUtil;
+import com.ubivelox.iccard.common.Constants;
+import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.ErrorCode;
+import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
+import com.ubivelox.iccard.pkcs.constant.ITemplate;
+import com.ubivelox.iccard.util.HexUtil;
 import iaik.pkcs.pkcs11.wrapper.CK_ATTRIBUTE;
 import iaik.pkcs.pkcs11.wrapper.CK_MECHANISM;
 import iaik.pkcs.pkcs11.wrapper.PKCS11;
@@ -19,11 +17,8 @@ import org.xipki.pkcs11.wrapper.PKCS11Constants;
 import org.xipki.pkcs11.wrapper.PKCS11Exception;
 import org.xipki.pkcs11.wrapper.PKCS11Module;
 
-import javax.validation.constraints.NotNull;
 import java.util.HashMap;
-import java.util.Map;
 
-import static org.xipki.pkcs11.wrapper.PKCS11Constants.CKM_DES_KEY_GEN;
 import static org.xipki.pkcs11.wrapper.PKCS11Constants.CKM_RSA_PKCS_KEY_PAIR_GEN;
 
 
@@ -40,6 +35,7 @@ public class IaikPKCSWrapper {
     public static final long CKM_SEED_MAC_GENERAL = CKK_VENDOR_DEFINED + 0x9d4L;
     public static final long CKM_SEED_ECB_PAD = CKK_VENDOR_DEFINED + 0x9d5L;
     public static final long CKM_SEED_CBC_PAD = CKK_VENDOR_DEFINED + 0x9d6L;
+    public static final long CKM_DES3_DERIVE_ECB =  CKK_VENDOR_DEFINED + 0x502L;
 
     private PKCS11Module pkcs11;
     private PKCS11 pkcs11api;
@@ -113,7 +109,6 @@ public class IaikPKCSWrapper {
     public void finalizePCKS11() {
         try {
             if (pkcs11 != null) { // 종료 호출
-                log.info("finalizePCKS11");
                 pkcs11api = pkcs11.getPKCS11Module();
                 pkcs11api.finalize();
             }
@@ -129,6 +124,7 @@ public class IaikPKCSWrapper {
         long sessionId = 0;
         try {
             sessionId = pkcs11api.C_OpenSession(slotId, PKCS11Constants.CKF_RW_SESSION | PKCS11Constants.CKF_SERIAL_SESSION, null, null);
+            log.debug("Slot OpenSession 성공 ={}, sessionId={}", slotLabel, sessionId);
         } catch (PKCS11Exception e) {
             // 에러메시지 정리 불가 -> front단에서 slotLabel substring 하여 사용
             throw new BusinessException(ErrorCode.ERR_C_OPEN_SESSION ,String.format("[%s]: Slot openSession 실패하였습니다.", slotLabel));
@@ -142,7 +138,7 @@ public class IaikPKCSWrapper {
 
         try {
             pkcs11api.C_Login(sessionId, PKCS11Constants.CKU_USER, password.toCharArray(), false);
-            log.info("Slot Login 성공 ={}", slotLabel);
+            log.debug("Slot Login 성공 ={}, sessionId={}", slotLabel, sessionId);
             slot.setSessionId(sessionId);
             slot.setLastUsedTime(System.currentTimeMillis());
             slot.setSlotPassword(password);
@@ -168,6 +164,7 @@ public class IaikPKCSWrapper {
 
     public void closeSession(long sessionId) {
         try {
+            log.debug("Slot CloseSession ={}", sessionId);
             pkcs11api.C_CloseSession(sessionId);
         } catch (PKCS11Exception pe) {
             log.error(pe.getMessage(), pe);
@@ -192,17 +189,22 @@ public class IaikPKCSWrapper {
         closeSession(sessionId);
     }
 
-    public long[] findObjects(long sessionId, CK_ATTRIBUTE template[], long ulMaxObjectCount){
-        long[] keyList = new long[0];
+    public long findObject(long sessionId, CK_ATTRIBUTE template[]){
+        long key = 0;
         try {
             pkcs11api.C_FindObjectsInit(sessionId, template, false);
-            keyList = pkcs11api.C_FindObjects(sessionId, ulMaxObjectCount);
+            long[] keyList = pkcs11api.C_FindObjects(sessionId, 1);
             pkcs11api.C_FindObjectsFinal(sessionId);
+            if (keyList.length > 0) {
+                key = keyList[0];
+            } else {
+                throw new BusinessException(ErrorCode.ERR_C_FIND_OBJECTS, "key가 존재하지 않습니다.");
+            }
         } catch (PKCS11Exception e) {
             log.error(e.getMessage(), e);
             throw new BusinessException(ErrorCode.ERR_C_FIND_OBJECTS, "key 리스트 조회에 실패했습니다.");
         }
-        return keyList;
+        return key;
     }
 
     public long createObject(long sessionId, CK_ATTRIBUTE[] template) {
@@ -212,6 +214,18 @@ public class IaikPKCSWrapper {
         } catch (PKCS11Exception e) {
             log.error(e.getMessage(), e);
             throw new BusinessException(ErrorCode.ERR_C_CREATE_OBJECT);
+        }
+        return key;
+    }
+
+    public long deriveKey(long sessionId, CK_MECHANISM mechanism, long baseKey, long keyType) {
+        long key = 0;
+        try {
+            CK_ATTRIBUTE[] template = ITemplate.deriveKeyTemplate(keyType);
+            key = pkcs11api.C_DeriveKey(sessionId, mechanism, baseKey, template, false);
+        } catch (PKCS11Exception e) {
+            log.error(e.getMessage(), e);
+            throw new BusinessException(ErrorCode.ERR_C_DERIVE_KEY);
         }
         return key;
     }
@@ -248,32 +262,7 @@ public class IaikPKCSWrapper {
         }
     }
 
-    public boolean checkStatus(Slot slot) {
 
-        long sessionId = slot.getSessionId();
-        CK_ATTRIBUTE template[] = ITemplate.createTempObjTemplate();
-        try {
-            long keyId = createObject(sessionId, template);
-            destroyObject(sessionId, keyId);
-            slot.setStatus(Constants.YES);
-            return true;
-        } catch (Exception e) {
-            log.error(e.getMessage());
-            slot.setStatus(Constants.NO);
-            slot.setSessionId(0);
-            return false;
-        }
-    }
-
-    public CK_ATTRIBUTE[] getAttribute(long sessionId, long ObjKey, CK_ATTRIBUTE[] template) {
-        try {
-            pkcs11api.C_GetAttributeValue(sessionId, ObjKey, template, false);
-        } catch (PKCS11Exception e) {
-            log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.ERR_C_GET_ATTRIBUTE);
-        }
-        return template;
-    }
 
     public byte[] encrypt(long sessionId, CK_MECHANISM mechanism, long keyId, byte[] plainData) {
         byte[] result;
@@ -298,45 +287,5 @@ public class IaikPKCSWrapper {
         }
         return result;
     }
-
-    public byte[] wrapKey(long sessionId, CK_MECHANISM mechanism, long wrappingKeyId, long keyId) {
-        byte[] wrappedKey;
-        try {
-            wrappedKey = pkcs11api.C_WrapKey(sessionId, mechanism, wrappingKeyId, keyId, false);
-        } catch (PKCS11Exception e) {
-            log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.ERR_C_WRAP_KEY);
-        }
-        return wrappedKey;
-    }
-
-    public long unwrapKey(long sessionId, CK_MECHANISM mechanism, long unwrappingKeyId, byte[] wrappedKey, CK_ATTRIBUTE[] template) {
-        long keyId;
-        try {
-            keyId = pkcs11api.C_UnwrapKey(sessionId, mechanism, unwrappingKeyId, wrappedKey, template, false);
-        } catch (PKCS11Exception e) {
-            log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.ERR_C_UNWRAP_KEY);
-        }
-        return keyId;
-    }
-
-
-
-    public String calKcv(long sessionId, String keyType, long keyId) {
-        String kcv = "";
-        CK_MECHANISM mechanism = IPkcsMechanism.getMechanism(keyType);
-
-        byte[] plainData = new byte[16];
-        byte[] encData = encrypt(sessionId, mechanism, keyId, plainData);
-        try {
-            kcv = HexUtil.toHexString(encData).substring(0, 6);
-        } catch (Exception e) {
-            log.error(e.getMessage(), e);
-            log.error("calKcv 실패 Obj key 번호={}: ", keyId, e);
-        }
-        return kcv;
-    }
-
 
 }

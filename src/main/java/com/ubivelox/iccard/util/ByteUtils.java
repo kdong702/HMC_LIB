@@ -1,6 +1,7 @@
-package com.lotson.cas.utils;
+package com.ubivelox.iccard.util;
 
-import com.lotson.cas.pkcs.constant.PkcsMechanism;
+
+import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayOutputStream;
@@ -1606,7 +1607,7 @@ public class ByteUtils {
         return result;
     }
 
-    public static byte[] copyArraysWithPad80(PkcsMechanism IPkcsMechanism, byte[]... data) {
+    public static byte[] copyArraysWithPad80(IPkcsMechanism IPkcsMechanism, byte[]... data) {
         int blockSize = IPkcsMechanism.getBlockSize();
         return HexUtils.pad80(copyArrays(data), blockSize);
     }

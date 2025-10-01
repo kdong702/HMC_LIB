@@ -1,17 +1,18 @@
-package com.ubivelox.iccard.task.protocol;
+package com.ubivelox.iccard.task.a2;
 
 import com.ubivelox.iccard.annotation.FieldData;
 import com.ubivelox.iccard.annotation.MaskData;
 import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.exception.BusinessException;
 import com.ubivelox.iccard.exception.ErrorCode;
+import com.ubivelox.iccard.task.HmcProtocol;
 import lombok.*;
 
 import java.util.HashMap;
 
 
 @Getter
-public class A2 {
+public class A2Protocol {
     @Getter
     @Setter
     @ToString
@@ -22,8 +23,10 @@ public class A2 {
         private String trn;
         @FieldData(fieldName = "KDD", length = 20)
         private String kdd;
-        @FieldData(fieldName = "KI", length = 4)
-        private String ki;
+        @FieldData(fieldName = "KeyVersion", length = 2)
+        private String kv;
+        @FieldData(fieldName = "Secure Channel Protocol", length = 2)
+        private String scp;
         @FieldData(fieldName = "SC", length = 4)
         private String sc;
         @FieldData(fieldName = "CRN", length = 12)
@@ -32,13 +35,14 @@ public class A2 {
         private String cc;
 
         public boolean isScpType01() {
-            String scpType = this.getKi().substring(2, 4);
+            String scpType = this.getScp();
 
             if (!scpType.equals("01") && !scpType.equals("02")) {
                 throw new BusinessException(ErrorCode.INVALID_SCP_TYPE);
             }
 
             if (scpType.equals("01") ) {
+                // 결국 s2+ crn은 다 똑같은듯?
                 this.crn = sc + crn;
                 this.sc = "";
             }

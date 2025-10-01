@@ -1,16 +1,17 @@
-package com.ubivelox.iccard.task.protocol;
+package com.ubivelox.iccard.task.a1;
 
 import com.ubivelox.iccard.annotation.FieldData;
 import com.ubivelox.iccard.annotation.MaskData;
 import com.ubivelox.iccard.common.Constants;
-import com.ubivelox.iccard.util.StreamWriter;
+import com.ubivelox.iccard.task.a2.A2Protocol;
+import com.ubivelox.iccard.task.HmcProtocol;
 import lombok.*;
 
 import java.util.HashMap;
 
 
 @Getter
-public class A1 {
+public class A1Protocol {
     @Getter
     @Setter
     @ToString
@@ -29,7 +30,7 @@ public class A1 {
 
         @Override
         public HmcProtocol.Response generateError(String resCode) {
-            return new A2.Response(resCode, "errorTest", "");
+            return new A2Protocol.Response(resCode, "errorTest", "");
         }
     }
 

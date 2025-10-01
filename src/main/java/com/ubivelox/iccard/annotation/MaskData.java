@@ -7,9 +7,10 @@ import java.lang.annotation.Target;
 
 @Target({ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER, ElementType.TYPE, ElementType.ANNOTATION_TYPE})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface TaskData {
+public @interface MaskData {
 
-    public String taskCd() default "";
-    public String taskName() default  "";
+    public int start() default 0;
+    public int end() default  0;
+    public char maskChar() default '*';
 
 }

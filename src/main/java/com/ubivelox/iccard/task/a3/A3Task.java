@@ -1,4 +1,4 @@
-package com.ubivelox.iccard.task.a2;
+package com.ubivelox.iccard.task.a3;
 
 
 import com.ubivelox.iccard.annotation.TaskData;
@@ -6,19 +6,16 @@ import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
 import com.ubivelox.iccard.exception.BusinessException;
 import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
-import com.ubivelox.iccard.task.HmcSubTask;
-import com.ubivelox.iccard.task.SubTask;
 import com.ubivelox.iccard.task.HmcProtocol;
+import com.ubivelox.iccard.task.HmcSubTask;
 import com.ubivelox.iccard.util.ByteUtils;
 import com.ubivelox.iccard.util.HexUtils;
 
-import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.HashMap;
 
 @TaskData(taskCd = "A2", taskName = "CARD MANAGER 인증/Put Key")
-public class A2Task extends HmcSubTask {
+public class A3Task extends HmcSubTask {
 
 
     @Override
@@ -26,7 +23,7 @@ public class A2Task extends HmcSubTask {
         CustomLog log = new CustomLog(transId);
         try {
             HashMap<String, String> resultMap = new HashMap();
-            A2Protocol.Request a2Req = (A2Protocol.Request) request;
+            A3Protocol.Request a2Req = (A3Protocol.Request) request;
             if (a2Req.isScpType01()) {
                 log.info("SCP01 Type");
                 log.info("request : {}", a2Req);
@@ -38,24 +35,24 @@ public class A2Task extends HmcSubTask {
 
                 byte[] encDkData = makeDkDataWithTag(a2Req.getKdd(), 1);
                 log.info("encDkData[{}] = {}",encDkData.length, HexUtils.toHexString(encDkData));
-                byte[] bytes2 = ByteUtils.copyArray(encDkData, encDkData, 16, 8);
-                SecretKeySpec encDkKey = encAndMakeKey(sessionId, encKeyId, bytes2, IPkcsMechanism.DES2_DES3_ECB);
+
+                SecretKeySpec encDkKey = encAndMakeKey(sessionId, encKeyId, encDkData, IPkcsMechanism.DES2_DES3_ECB);
 
                 String sc = a2Req.getSc();
                 byte[] skData = makeSkDataWithTag(sc, 1);
-                byte[] padSkData = ByteUtils.copyArray(skData, skData, 16, 8);
+
 
                 log.info("skData[{}] = {}",skData.length, HexUtils.toHexString(skData));
-                log.info("padSkData[{}] = {}",padSkData.length, HexUtils.toHexString(padSkData));
 
-                byte[] encSkData = encryptJce(padSkData, IPkcsMechanism.DES3_CBC, encDkKey, Constants.NoPadding);
+                byte[] test = ByteUtils.cutByteArray(skData, 0, 8);
+                byte[] encSkData = encryptJce(test, IPkcsMechanism.DES_CBC, encDkKey, Constants.NoPadding);
                 log.info("encSkData[{}] = {}",encSkData.length, HexUtils.toHexString(encSkData));
                 SecretKeySpec encSkKey = createObjJce(encSkData, IPkcsMechanism.DES3_CBC);
 
 
                 String hrn = a2Req.getTrn();
                 String crn = sc + a2Req.getCrn() ;
-                byte[] bDerivationData = makeDerivationDataWithPad(crn, hrn);
+                byte[] bDerivationData = makeCcDataWithPad(crn, hrn);
 
 
                 byte[] cc1 = encryptJce(bDerivationData, IPkcsMechanism.DES3_CBC, encSkKey, Constants.NoPadding);

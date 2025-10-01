@@ -1,4 +1,4 @@
-package com.lotson.cas.utils;
+package com.ubivelox.iccard.util;
 
 import java.io.IOException;
 import java.security.SecureRandom;
@@ -389,8 +389,14 @@ public class HexUtils {
     }
 
     public static String maskData(String data, int from, int to, char maskWith) {
-
         StringBuilder maskedPart = new StringBuilder();
+
+        if (data == null || data.length() < to || from < 0 || to <= from) {
+            for(int i=from; i<to; i++)
+                maskedPart.append(maskWith);
+            return maskedPart.toString();
+        }
+
         for(int i=from; i<to; i++)
             maskedPart.append(maskWith);
 

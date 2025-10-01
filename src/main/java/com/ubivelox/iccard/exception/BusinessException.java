@@ -1,4 +1,4 @@
-package com.lotson.hmc.exception;
+package com.ubivelox.iccard.exception;
 
 import lombok.Getter;
 
@@ -7,26 +7,6 @@ public class BusinessException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     private final ErrorCode errorCode;
-
-    public BusinessException() {
-        super(ErrorCode.INTERNAL_ERROR.getMessage());
-        this.errorCode = ErrorCode.INTERNAL_ERROR;
-    }
-
-    public BusinessException(String message) {
-        super(ErrorCode.INTERNAL_ERROR.getMessage(message));
-        this.errorCode = ErrorCode.INTERNAL_ERROR;
-    }
-
-    public BusinessException(String message, Throwable cause) {
-        super(ErrorCode.INTERNAL_ERROR.getMessage(message), cause);
-        this.errorCode = ErrorCode.INTERNAL_ERROR;
-    }
-
-    public BusinessException(Throwable cause) {
-        super(ErrorCode.INTERNAL_ERROR.getMessage(cause));
-        this.errorCode = ErrorCode.INTERNAL_ERROR;
-    }
 
     public BusinessException(ErrorCode errorCode) {
         super(errorCode.getMessage());
