@@ -68,25 +68,26 @@ public class HmcSubTask extends SubTask {
 
         byte[] bSc = HexUtils.toByteArray(sc);
         log.info("bSc: {}", HexUtils.toHexString(bSc));
-        byte[] bSKData = new byte[16];
-        System.arraycopy(sTag, 0, bSKData, 0, 2);
-        System.arraycopy(bSc, 0, bSKData, 2, 2);
-//        byte[] padSkData = ByteUtils.addPadding(bSKData, 16, (byte) 0x00);
-        log.info("padSkData: {}", HexUtils.toHexString(bSKData));
-
-        return bSKData;
+        byte[] skData = new byte[16];
+        System.arraycopy(sTag, 0, skData, 0, 2);
+        System.arraycopy(bSc, 0, skData, 2, 2);
+        byte[] sk24Data = ByteUtils.copyArray(skData, skData, 16, 8);
+        log.info("sk24Data[{}] = {}", sk24Data.length, HexUtils.toHexString(sk24Data));
+        return sk24Data;
     }
 
     protected byte[] makeSkDataWithCrnHrn(String crn, String hrn) {
         byte[] bCRN = HexUtils.toByteArray(crn);
         byte[] bHRN = HexUtils.toByteArray(hrn);
-        byte[] bDerivationData = new byte[16];
-        System.arraycopy(bCRN, 4, bDerivationData, 0, 4);
-        System.arraycopy(bHRN, 0, bDerivationData, 4, 4);
-        System.arraycopy(bCRN, 0, bDerivationData, 8, 4);
-        System.arraycopy(bHRN, 4, bDerivationData, 12, 4);
-        log.debug("bDerivationData: {}", HexUtils.toHexString(bDerivationData));
-        return bDerivationData;
+        byte[] skData = new byte[16];
+        System.arraycopy(bCRN, 4, skData, 0, 4);
+        System.arraycopy(bHRN, 0, skData, 4, 4);
+        System.arraycopy(bCRN, 0, skData, 8, 4);
+        System.arraycopy(bHRN, 4, skData, 12, 4);
+        log.debug("skData: {}", HexUtils.toHexString(skData));
+        byte[] sk24Data = ByteUtils.copyArray(skData, skData, 16, 8);
+        log.info("skData[{}] = {}", skData.length, HexUtils.toHexString(skData));
+        return sk24Data;
     }
 
     protected SecretKeySpec encAndMakeKey(long sessionId, long encKey, byte[] plainData, IPkcsMechanism pkcsMechanism) {
