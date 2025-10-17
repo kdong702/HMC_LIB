@@ -28,7 +28,7 @@ public class B3Protocol {
         @FieldData(fieldName = "Account Number", length = 104)
         private String accountNumber;
         @FieldData(fieldName = "Account Start Position", length = 2)
-        private String expireDate;
+        private String startPosition;
         @FieldData(fieldName = "Account Count", length = 2)
         private String accountCount;
 

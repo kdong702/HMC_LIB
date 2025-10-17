@@ -24,12 +24,14 @@ public class A2Task extends HmcSubTask {
     public HmcProtocol.Response doLogic(HmcProtocol.Request request, long sessionId, String transId) {
         CustomLog log = new CustomLog(transId);
         try {
-            long initKeyId = findObj(sessionId, Constants.INIT_KEY_LABEL, transId);
-            long bankKeyId = findObj(sessionId, Constants.BANK_KEY_LABEL, transId);
-
-            long[] keyList = new long[]{initKeyId, bankKeyId};
             HashMap<String, String> resultMap = new HashMap();
             A2Protocol.Request a2Req = (A2Protocol.Request) request;
+            String keyVersion = "_" + a2Req.getKv();
+            long initKeyId = findKeyId(sessionId, Constants.INIT_KEY_LABEL + keyVersion, transId);
+            long bankKeyId = findKeyId(sessionId, Constants.BANK_KEY_LABEL + keyVersion, transId);
+
+            long[] keyList = new long[]{initKeyId, bankKeyId};
+
             String kdd = a2Req.getKdd();
             String crn = "";
             String trn = a2Req.getTrn();
@@ -129,9 +131,9 @@ public class A2Task extends HmcSubTask {
             log.info("kcv_enc : {}", HexUtils.toHexString(kcvEnc));
             log.info("kcv_mac : {}", HexUtils.toHexString(kcvMac));
             log.info("kcv_kek : {}", HexUtils.toHexString(kcvKek));
-            String kv = a2Req.getKv();
+
             // TODO 8010 대신 8110
-            String putApdu = "80D8" + kv + "814301" +
+            String putApdu = "80D8" + a2Req.getKv() + "814301" +
                     putAdpuPrefix +HexUtils.toHexString(encBankDk).substring(0,32) +
                     "03" + HexUtils.toHexString(kcvEnc) +
                     putAdpuPrefix + HexUtils.toHexString(macBankDk).substring(0,32) +
@@ -154,25 +156,13 @@ public class A2Task extends HmcSubTask {
     private byte[] makeCcMac(String trn, String crn, CustomLog log, SecretKeySpec encSkKey) {
         byte[] cc = makeCcData(trn, crn, log, encSkKey);
         log.info("cc = {}", HexUtils.toHexString(cc));
-        byte[] ccMac = HexUtils.findLastBlockData(cc, IPkcsMechanism.DES3_CBC.getBlockSize(), 8);
-
-        return ccMac;
+        return HexUtils.findLastBlockData(cc, IPkcsMechanism.DES3_CBC.getBlockSize(), 8);
     }
 
     private byte[] makeCcData(String hrn, String crn, CustomLog log, SecretKeySpec encSkKey) {
         byte[] cc1Data = makeCcDataWithPad(hrn, crn);
         log.info("ccData[{}] = {}",cc1Data.length, HexUtils.toHexString(cc1Data));
         return encryptJce(cc1Data, IPkcsMechanism.DES3_CBC, encSkKey, Constants.NoPadding);
-    }
-
-    private SecretKeySpec makeSessionKey(String sc, SecretKeySpec encDkKey, CustomLog log, int tagFlag) {
-        byte[] skData = makeSkDataWithTag(sc, tagFlag);
-        byte[] encSkData = encryptJce(skData, IPkcsMechanism.DES3_CBC, encDkKey, Constants.NoPadding);
-        log.info("encSkData[{}] = {}", encSkData.length, HexUtils.toHexString(encSkData));
-        // TODO Chiper 는 DDES 가 없으므로 3DES 로 처리 후 가공 필요
-        byte[] encSk16Data = ByteUtils.cutByteArray(encSkData, 0, 16);
-        byte[] encSk24Data = ByteUtils.copyArray(encSk16Data, encSk16Data, 16, 8);
-        return createObjJce(encSk24Data, IPkcsMechanism.DES3_CBC);
     }
 
     private SecretKeySpec makeSessionKey(byte[] skData, SecretKeySpec encDkKey, IPkcsMechanism mechanism, CustomLog log) {
@@ -184,16 +174,6 @@ public class A2Task extends HmcSubTask {
         return createObjJce(encSk24Data, mechanism);
     }
 
-    private SecretKeySpec makeSessionKey(String crn, String hrn, SecretKeySpec encDkKey, CustomLog log) {
-        byte[] skData = makeSkDataWithCrnHrn(crn, hrn); // TODO 여기 한 부분이 다른듯?
-
-        byte[] encSkData = encryptJce(skData, IPkcsMechanism.DES3_ECB, encDkKey, Constants.NoPadding);
-        log.info("encSkData[{}] = {}", encSkData.length, HexUtils.toHexString(encSkData));
-        // TODO Chiper 는 DDES 가 없으므로 3DES 로 처리 후 가공 필요
-        byte[] encSk16Data = ByteUtils.cutByteArray(encSkData, 0, 16);
-        byte[] encSk24Data = ByteUtils.copyArray(encSk16Data, encSk16Data, 16, 8);
-        return createObjJce(encSk24Data, IPkcsMechanism.DES3_ECB);
-    }
     private SecretKeySpec makeDkKey(long sessionId, String kdd, long encKeyId, CustomLog log, int tagFlag) {
         byte[] encDkData = makeDkDataWithTag(kdd, tagFlag);
         log.info("encDkData[{}] = {}",encDkData.length, HexUtils.toHexString(encDkData));
@@ -237,110 +217,6 @@ public class A2Task extends HmcSubTask {
         }
     }
 
-//    private String makeCdolData18(Auth.Request request) {
-//        StringBuilder sb = findTag(request);
-//        sb.append(request.findTagValue(AIP));
-//        sb.append(request.findTagValue(ATC));
-//        sb.append(request.findTagValue(IAD).trim());
-//        return sb.toString();
-//    }
-//
-//    private String makeCdolData10(Auth.Request request, String cvr) {
-//        StringBuilder sb = findTag(request);
-//        sb.append(request.findTagValue(AIP));
-//        sb.append(request.findTagValue(ATC));
-//        sb.append(cvr);
-//        return sb.toString();
-//    }
-//    private StringBuilder findTag(Auth.Request request) {
-//        StringBuilder sb = new StringBuilder();
-//        sb.append(request.findTagValue(CRYPTO_AMOUNT));
-//        sb.append(request.findTagValue(CRYPTO_CASH_AMOUNT));
-//        sb.append(request.findTagValue(TML_COUNTRY_CODE));
-//        sb.append(request.findTagValue(TVR));
-//        sb.append(request.findTagValue(CRYPTO_CURR_CODE));
-//        sb.append(request.findTagValue(TML_TRANS_DATE));
-//        sb.append(request.findTagValue(CTT));
-//        sb.append(request.findTagValue(UNPR_NO));
-//        return sb;
-//    }
-//
-//    private String checkCvnType(String cvn) {
-//        if (StringUtils.equals(cvn, CVN_10_MODE)) {
-//            return CVN_10_MODE;
-//        } else if (StringUtils.equals(cvn, CVN_18_MODE)) {
-//            return CVN_18_MODE;
-//        } else {
-//            throw new LibException(LibErrorCode.INVALID_CVN);
-//        }
-//    }
-//
-//    protected byte[] makeDerivationData(String pan, String panSeq) {
-//        String rightFromPanAndPanSeq = pan.substring(pan.length() - 14, pan.length()) + panSeq; // 오른쪽 정렬
-//        byte[] inputDataA = HexUtils.toByteArray(rightFromPanAndPanSeq);
-//        byte[] inputDataB = ByteUtils.xor(inputDataA);
-//        log.debug("inputDataA: {}", HexUtils.toHexString(inputDataA));
-//        log.debug("inputDataB: {}", HexUtils.toHexString(inputDataB));
-//
-//        byte[] bDkData = ByteUtils.copyArray(inputDataA, inputDataB);
-//        log.debug("bDKData: {}", HexUtils.toHexString(bDkData));
-//        return bDkData;
-//    }
-//
-//    protected void makeUdkKeyAAndDES3(byte[] data, HashMap<String, SecretKeySpec> keyMap, CustomLog logger) {
-//        byte[] dataA = ByteUtils.cutByteArray(data, 0, 8);
-//        SecretKeySpec handleA = makeKeyHandleWithEncData(dataA, PkcsMechanism.DES_ECB);
-//
-//        byte[] dataB = ByteUtils.cutByteArray(data, 8, 8);
-//        SecretKeySpec handleB = makeKeyHandleWithEncData(dataB,  PkcsMechanism.DES_ECB);
-//
-//        byte[] dataDes3 = ByteUtils.copyArray(data, dataA);
-//        logger.log("udk_handle Data = {}", HexUtils.toHexString(HexUtils.makeOddParity(dataDes3)));
-//        SecretKeySpec handleDes3 = makeKeyHandleWithEncData(dataDes3, PkcsMechanism.DES3_ECB);
-//
-//        keyMap.put(UDK_A_HANDLE, handleA);
-//        keyMap.put(UDK_B_HANDLE, handleB);
-//        keyMap.put(UDK_HANDLE, handleDes3);
-//    }
-//
-//    protected SecretKeySpec makeKeyHandleWithEncData(byte[] bEncData, PkcsMechanism pkcsMechanism) {
-//        if (StringUtils.equals(pkcsMechanism.getParityYn(), YES)) {
-//            bEncData = HexUtils.makeOddParity(bEncData);
-//        }
-//        SecretKeySpec keyHandle = createObjJce(bEncData, pkcsMechanism);
-//        return keyHandle;
-//    }
-//
-//    protected byte[] makeSessionFData(String atc) {
-//        byte[] fDataA = ByteUtils.toFillRight(HexUtils.toByteArray(atc), (byte)0x00, 8);
-//        fDataA[2] = (byte)0xF0;
-//        byte[] fDataB = ByteUtils.toFillRight(HexUtils.toByteArray(atc), (byte)0x00, 8);
-//        fDataB[2] = (byte)0x0F;
-//        log.debug("F1: {}", HexUtils.toHexString(fDataA));
-//        log.debug("F2: {}", HexUtils.toHexString(fDataB));
-//
-//        return ByteUtils.copyArray(fDataA, fDataB);
-//    }
-//
-//
-//    protected void makeSessionKeyAAndDES3(SecretKeySpec udkHandle, byte[] data, HashMap<String, SecretKeySpec> keyMap, CustomLog logger) throws TaskException {
-//        byte[] dataA = ByteUtils.cutByteArray(data, 0, 8);
-//        byte[] dataB = ByteUtils.cutByteArray(data, 8, 8);
-//
-//        byte[] sessionAData = encryptJce(dataA, PkcsMechanism.DES3_ECB, udkHandle, NoPadding );
-//        SecretKeySpec sessionAHandle = makeKeyHandleWithEncData(sessionAData, PkcsMechanism.DES_ECB);
-//
-//        byte[] sessionBData = encryptJce(dataB, PkcsMechanism.DES3_ECB, udkHandle, NoPadding );
-////        SecretKeySpec sessionBHandle = makeKeyHandleWithEncData(sessionBData, PkcsMechanism.DES_ECB);
-//
-//        byte[] sessionData = ByteUtils.copyArrays(sessionAData, sessionBData, sessionAData);
-//        SecretKeySpec sessionHandle = makeKeyHandleWithEncData(sessionData, PkcsMechanism.DES3_ECB);
-//        logger.log("sessionData = {}", HexUtils.toHexString(HexUtils.makeOddParity(sessionData)));
-//
-//        keyMap.put(SESSION_A_HANDLE, sessionAHandle);
-//        keyMap.put(SESSION_HANDLE, sessionHandle);
-//    }
-//
 //    protected byte[] xorEncDES(SecretKeySpec aHandle, SecretKeySpec handle, byte[] array) {
 //        byte[] encData = new byte[8];
 //        byte[] temp = new byte[8];
@@ -356,36 +232,7 @@ public class A2Task extends HmcSubTask {
 //        return encryptJce(encXTemp, PkcsMechanism.DES3_ECB, handle, NoPadding);
 //    }
 //
-//    protected void checkArqc(byte[] bArqc, byte[] calcARQC) {
-//        boolean isSameARQC = Arrays.equals(bArqc, calcARQC);
-//        log.debug("reqARQC: {}, calcARQC: {}, isSameARQC: {}", HexUtils.toHexString(bArqc), HexUtils.toHexString(calcARQC), isSameARQC);
-//        if (!isSameARQC) {
-//            throw new LibException(LibErrorCode.ARQC_FAIL);
-//        }
-//    }
-//
-//    private byte[] makeArpc18(SecretKeySpec udkAHandle, SecretKeySpec udkHandle, byte[] bArqc) {
-//        String csu = "00800000";
-//        byte[] bCsu = HexUtils.toByteArray(csu);
-//        byte[] bArpcData = HexUtils.pad80(ByteUtils.copyArray(bArqc, bCsu), PkcsMechanism.DES_ECB.getBlockSize());
-//        log.debug("ARPCData: {}", HexUtils.toHexString(bArpcData));
-//
-//        byte[] decTemp = xorEncDecDES(udkAHandle, udkHandle, bArpcData);
-//        byte[] first4DecTemp = ByteUtils.cutByteArray(decTemp, 0, 4);
-//        byte[] arpcResult = ByteUtils.copyArray(first4DecTemp, HexUtils.toByteArray(csu));
-//        log.debug("ARPC: {}", HexUtils.toHexString(arpcResult));
-//        return arpcResult;
-//    }
-//
-//    private byte[] makeArpc10(SecretKeySpec udkHandle, byte[] calcARQC) {
-//        byte[] bArc = ByteUtils.toFillLeft(new byte[6], (byte)0x30, 8);
-//        byte[] xorARC = xor(calcARQC, bArc);
-//        log.debug("ARC: {}, xorARC: {}", HexUtils.toHexString(bArc), HexUtils.toHexString(xorARC));
-//
-//        byte[] bArpc = encryptJce(xorARC, PkcsMechanism.DES3_ECB, udkHandle, NoPadding);
-//        log.debug("bARPC: {}",  HexUtils.toHexString(bArpc));
-//        return bArpc;
-//    }
+
 //
 //    private byte[] xorEncDecDES(SecretKeySpec aHandle, SecretKeySpec bHandle, byte[] array) {
 //        byte[] encData = new byte[8];

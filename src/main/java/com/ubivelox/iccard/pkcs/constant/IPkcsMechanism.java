@@ -12,8 +12,8 @@ import org.xipki.pkcs11.wrapper.PKCS11Constants;
 @Getter
 @AllArgsConstructor
 public enum IPkcsMechanism {
-    SEED_VENDOR_ECB     ("SEED_VENDOR_ECB",  "SEED_ECB",         IaikPKCSWrapper.CKM_SEED_ECB,  IaikPKCSWrapper.CKK_SEED,    16,    null,           Constants.NO, Constants.NOT_USE,    Constants.ECB), // 최상위 필요
-    SEED_VENDOR_CBC     ("SEED_VENDOR_CBC",  "SEED_CBC",         IaikPKCSWrapper.CKM_SEED_CBC,  IaikPKCSWrapper.CKK_SEED,    16,     new byte[16],     Constants.NO, Constants.NOT_USE,     Constants.CBC), // 최상위 필요
+    SEED_VENDOR_ECB     ("SEED_VENDOR_ECB",  "SEED_ECB",         IaikPKCSWrapper.CKM_SEED_ECB,  IaikPKCSWrapper.CKK_SEED,    16,    null,           Constants.NO, "SEED",    Constants.ECB), // 최상위 필요
+    SEED_VENDOR_CBC     ("SEED_VENDOR_CBC",  "SEED_CBC",         IaikPKCSWrapper.CKM_SEED_CBC,  IaikPKCSWrapper.CKK_SEED,    16,     new byte[16],     Constants.NO, "SEED",     Constants.CBC), // 최상위 필요
     SEED_ECB            ("SEED_ECB",         "SEED_ECB",         PKCS11Constants.CKM_SEED_ECB,  PKCS11Constants.CKK_SEED,    16,     null,          Constants.NO, Constants.NOT_USE,    Constants.ECB), // 최상위 필요
     SEED_CBC            ("SEED_CBC",         "SEED_CBC",         PKCS11Constants.CKM_SEED_CBC,  PKCS11Constants.CKK_SEED,    16,     new byte[16],     Constants.NO, Constants.NOT_USE,     Constants.CBC), // 최상위 필요
     DES_ECB             ("DES_ECB",          "DES_ECB",          PKCS11Constants.CKM_DES_ECB,    PKCS11Constants.CKK_DES,    8,     null,          Constants.YES, "DES",        Constants.ECB),

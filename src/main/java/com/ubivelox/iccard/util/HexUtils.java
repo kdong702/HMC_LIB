@@ -290,6 +290,16 @@ public class HexUtils {
         return sb.toString();
     }
 
+    public static byte[] toBytesWithSpacePad(byte[] input, int length) {
+        byte[] result = new byte[length];
+        int len = Math.min(input.length, length);
+        System.arraycopy(input, 0, result, 0, len);
+        if (len < length) {
+            Arrays.fill(result, len, length, (byte) 0x20);
+        }
+        return result;
+    }
+
     public static byte[] addPadding(byte[] source, int blockSize)
     {
         int paddingCnt = source.length % blockSize;
@@ -369,7 +379,7 @@ public class HexUtils {
         return unpadData;
     }
 
-    public static byte[] findLastBlockData(byte data[], int blockSize, int findSize ) {
+    public static byte[] findLastBlockData(byte data[], int blockSize, int findSize) {
         int share = (int) Math.ceil((double) data.length / blockSize);
         byte[] target = new byte[findSize];
         System.arraycopy(data, blockSize * (share - 1), target, 0, findSize);

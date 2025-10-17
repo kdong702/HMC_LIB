@@ -3,6 +3,8 @@ package com.ubivelox.iccard.task.a1;
 import com.ubivelox.iccard.annotation.FieldData;
 import com.ubivelox.iccard.annotation.MaskData;
 import com.ubivelox.iccard.common.Constants;
+import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.ErrorCode;
 import com.ubivelox.iccard.task.a2.A2Protocol;
 import com.ubivelox.iccard.task.HmcProtocol;
 import lombok.*;
@@ -17,11 +19,35 @@ public class A1Protocol {
     @ToString
     public static class Request implements HmcProtocol.Request {
 
-//        @ToString.Exclude
         @FieldData(fieldName = "TRN", length = 16)
         private String trn;
-        @FieldData(fieldName = "Initialize Update Data", length = 56)
-        private String initData;
+        @FieldData(fieldName = "KDD", length = 20)
+        private String kdd;
+        @FieldData(fieldName = "KeyVersion", length = 2)
+        private String kv;
+        @FieldData(fieldName = "Secure Channel Protocol", length = 2)
+        private String scp;
+        @FieldData(fieldName = "SC", length = 4)
+        private String sc;
+        @FieldData(fieldName = "CRN", length = 12)
+        private String crn;
+        @FieldData(fieldName = "CC", length = 16)
+        private String cc;
+
+        public boolean isScpType01() {
+            String scpType = this.getScp();
+
+            if (!scpType.equals("01") && !scpType.equals("02")) {
+                throw new BusinessException(ErrorCode.INVALID_SCP_TYPE);
+            }
+
+            if (scpType.equals("01") ) {
+                // 결국 s2+ crn은 다 똑같은듯?
+                this.crn = sc + crn;
+                this.sc = "";
+            }
+            return scpType.equals("01");
+        }
 
         @Override
         public HmcProtocol.Response generateResponse(HmcProtocol.Request request, String resCode, HashMap<String, String> resultMap) {
@@ -30,7 +56,7 @@ public class A1Protocol {
 
         @Override
         public HmcProtocol.Response generateError(String resCode) {
-            return new A2Protocol.Response(resCode, "errorTest", "");
+            return new Response(resCode, "errorTest");
         }
     }
 

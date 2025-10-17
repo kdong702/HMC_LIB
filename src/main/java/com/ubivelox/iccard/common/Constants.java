@@ -20,6 +20,10 @@ public interface Constants {
     public static final String NoPadding = "NoPadding";
     public static final String PKCS5Padding = "PKCS5Padding";
 
-    public static final String  INIT_KEY_LABEL = "CMK_INIT_01";
-    public static final String  BANK_KEY_LABEL = "CMK_BANK_01";
+    public static final String  INIT_KEY_LABEL = "CMK_INIT";
+    public static final String  BANK_KEY_LABEL = "CMK_BANK";
+    public static final String FCK_KEY_LABEL = "FCK_BANK";
+    public static final String FCK_KEY_LABEL2 = "FCK_BANK_1601";
+    public static final String FCK_KEY_LABEL_TEST = "CMK_FCK_40";
+    public static final String BMK = "BMK";
 }

@@ -18,7 +18,6 @@ public class A2Protocol {
     @ToString
     public static class Request implements HmcProtocol.Request {
 
-//        @ToString.Exclude
         @FieldData(fieldName = "TRN", length = 16)
         private String trn;
         @FieldData(fieldName = "KDD", length = 20)

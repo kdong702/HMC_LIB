@@ -13,10 +13,13 @@ import com.ubivelox.iccard.util.PropertyReader;
 import iaik.pkcs.pkcs11.wrapper.CK_ATTRIBUTE;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.security.Provider;
+import java.security.Security;
 import java.util.HashMap;
 
 
@@ -80,7 +83,7 @@ public class SubTask implements ITask {
     }
 
 //
-    protected long findObj(long sessionId, String keyLabel, String transId) {
+    protected long findKeyId(long sessionId, String keyLabel, String transId) {
         CustomLog log = new CustomLog(transId);
         if (StringUtils.isEmpty(keyLabel)) {
             log.error("findObj keyLabel is empty");
@@ -146,6 +149,12 @@ public class SubTask implements ITask {
     }
 
     protected byte[] encryptJce(byte[] plainData, IPkcsMechanism pkcsMechanism, SecretKeySpec key, String padding) {
+        Provider bc = Security.getProvider("BC");
+        log.info("plainData[{}]: {}", plainData.length, HexUtils.toHexString(plainData));
+        if (bc == null) {
+            log.info("add BouncyCastleProvider");
+            Security.addProvider(new BouncyCastleProvider());
+        }
         try {
             StringBuilder sb = new StringBuilder();
             sb.append(pkcsMechanism.getAlgorithm());

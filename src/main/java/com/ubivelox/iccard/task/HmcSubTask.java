@@ -90,10 +90,19 @@ public class HmcSubTask extends SubTask {
         return sk24Data;
     }
 
+    protected byte[] makeXorDataWithCsn(String csn) {
+        byte[] bCSN = HexUtils.toByteArray(csn);
+        byte[] bXCSN = ByteUtils.xor(bCSN);
+        byte[] bDKData = ByteUtils.copyArray(bCSN, bXCSN);
+        log.debug("DKData: {}", HexUtils.toHexString(bDKData));
+        return bDKData;
+    }
+
     protected SecretKeySpec encAndMakeKey(long sessionId, long encKey, byte[] plainData, IPkcsMechanism pkcsMechanism) {
         byte[] bEncData = encrypt(sessionId, encKey, plainData, pkcsMechanism);
         return makeKeyHandleWithEncData(bEncData, pkcsMechanism);
     }
+
 
     protected SecretKeySpec makeKeyHandleWithEncData(byte[] bEncData, IPkcsMechanism pkcsMechanism)  {
         if (StringUtils.equals(pkcsMechanism.getParityYn(), Constants.YES)) {
@@ -101,8 +110,7 @@ public class HmcSubTask extends SubTask {
             log.info("makeOddParity 적용");
             bEncData = HexUtils.makeOddParity(bEncData);
         }
-        SecretKeySpec key = createObjJce(bEncData, pkcsMechanism);
-        return key;
+        return createObjJce(bEncData, pkcsMechanism);
     }
 
     protected byte[] encrypt(long sessionId, long encKey, byte[] plainData, IPkcsMechanism pkcsMechanism) {

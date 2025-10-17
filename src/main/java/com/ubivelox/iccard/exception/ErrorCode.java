@@ -24,6 +24,7 @@ public enum ErrorCode {
     ERR_HSM_SYNC                        ("CS0033",   "HSM 동기화에 실패하였습니다."),
     ERR_HSM_FINALIZE                    ("CS0031",   "HSM 종료에 실패하였습니다."),
     ERR_NOT_EXIST_DATA                  ("CS0023",   "데이터 형식이 잘못되어 있습니다."),
+    ERR_NOT_VALID_CHARSET               ("CS0024",   "문자열 형식이 잘못되어 있습니다."),
 
     ERR_C_OPEN_SESSION                  ("HS100001",   "C_OpenSession PKCS11Exception."),
     ERR_C_GET_MECHANISM_LIST            ("HS100002",   "C_GetMechanismList PKCS11Exception."),
