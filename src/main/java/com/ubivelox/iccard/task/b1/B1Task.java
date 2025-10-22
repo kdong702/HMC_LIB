@@ -6,7 +6,7 @@ import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
 import com.ubivelox.iccard.exception.BusinessException;
 import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
-import com.ubivelox.iccard.task.HmcSubTask;
+import com.ubivelox.iccard.task.BxTask;
 import com.ubivelox.iccard.task.HmcProtocol;
 import com.ubivelox.iccard.util.HexUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -15,7 +15,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.util.HashMap;
 
 @TaskData(taskCd = "B1", taskName = "FCI Update")
-public class B1Task extends HmcSubTask {
+public class B1Task extends BxTask {
 
     @Override
     public HmcProtocol.Response doLogic(HmcProtocol.Request request, long sessionId, String transId) {
@@ -23,7 +23,7 @@ public class B1Task extends HmcSubTask {
         try {
             B1Protocol.Request b1Req = (B1Protocol.Request) request;
             String keyVersion = "_"+b1Req.getKeyVersion();
-            long initKeyId = findKeyId(sessionId, Constants.FCK_KEY_LABEL_TEST+ keyVersion, transId);
+            long initKeyId = findKeyId(sessionId, Constants.FCK_KEY_LABEL+ keyVersion, transId);
             HashMap<String, String> resultMap = new HashMap();
             String csn = b1Req.getCsn();
             SecretKeySpec encDkKey = makeDkKey(sessionId, csn, initKeyId, log);
@@ -45,6 +45,7 @@ public class B1Task extends HmcSubTask {
             HmcProtocol.Response response = request.generateResponse(request, Constants.SUCCESS, resultMap);
             log.info("RESPONSE DATA {}", response);
             return response;
+
         } catch (BusinessException e) {
             log.error(e.getMessage(), e);
             HmcProtocol.Response responseError = request.generateError(e.getErrorCode().getCode());
@@ -56,9 +57,12 @@ public class B1Task extends HmcSubTask {
     private String makeFci(String label, String keyVersion, CustomLog log) {
         String fciPrefix = "6F288407D4106509900010";
         String proprietary = "A51D5010";
+
         String labelPad = StringUtils.rightPad(label, 16, ' ');
         log.info("label : [{}]", labelPad);
-        byte[] labelBytes = labelPad.getBytes();
+        byte[] labelBytes = toBytesByLang(label);
+        labelBytes= HexUtils.toBytesWithSpacePad(labelBytes, 16);
+
         String filePrefix = "BF0C08";
         String standardVersion = "01"; // Statndard Version
         String rfu = "000000000000";
@@ -74,19 +78,4 @@ public class B1Task extends HmcSubTask {
         return stringBuilder.toString();
     }
 
-    private byte[] makeMac(SecretKeySpec encDkKey, String data, IPkcsMechanism iPkcsMechanism, CustomLog log) {
-        byte[] bData = HexUtils.toByteArray(data);
-        int blockSize = iPkcsMechanism.getBlockSize();
-        byte[] padData = HexUtils.pad80(bData, blockSize);
-        log.info("mac data[{}] = {}",padData.length, HexUtils.toHexString(padData));
-        byte[] macData = encryptJce(padData, iPkcsMechanism, encDkKey, Constants.NoPadding);
-
-        return HexUtils.findLastBlockData(macData, iPkcsMechanism.getBlockSize(), 4);
-    }
-
-    private SecretKeySpec makeDkKey(long sessionId, String csn, long encKeyId, CustomLog log) {
-        byte[] encDkData = makeXorDataWithCsn(csn);
-        log.info("encDkData[{}] = {}",encDkData.length, HexUtils.toHexString(encDkData));
-        return encAndMakeKey(sessionId, encKeyId, encDkData, IPkcsMechanism.SEED_VENDOR_CBC);
-    }
 }

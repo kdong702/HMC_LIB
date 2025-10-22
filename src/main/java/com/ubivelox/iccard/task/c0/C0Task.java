@@ -6,17 +6,15 @@ import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
 import com.ubivelox.iccard.exception.BusinessException;
 import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
-import com.ubivelox.iccard.task.HmcSubTask;
-import com.ubivelox.iccard.task.SubTask;
+import com.ubivelox.iccard.task.CxTask;
 import com.ubivelox.iccard.task.HmcProtocol;
-import com.ubivelox.iccard.task.b5.B5Protocol;
 import com.ubivelox.iccard.util.HexUtils;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.util.HashMap;
 
 @TaskData(taskCd = "C0", taskName = "계좌 비밀번호 복호화")
-public class C0Task extends HmcSubTask {
+public class C0Task extends CxTask {
 
     @Override
     public HmcProtocol.Response doLogic(HmcProtocol.Request request, long sessionId, String transId) {
@@ -74,9 +72,4 @@ public class C0Task extends HmcSubTask {
         return decryptPin;
     }
 
-    private SecretKeySpec makeDkKey(long sessionId, String csn, long encKeyId, CustomLog log) {
-        byte[] dkData = makeXorDataWithCsn(csn);
-        log.info("dkData[{}] = {}",dkData.length, HexUtils.toHexString(dkData));
-        return encAndMakeKey(sessionId, encKeyId, dkData, IPkcsMechanism.SEED_VENDOR_CBC);
-    }
 }

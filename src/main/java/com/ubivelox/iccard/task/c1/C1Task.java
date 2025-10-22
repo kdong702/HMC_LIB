@@ -6,17 +6,16 @@ import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
 import com.ubivelox.iccard.exception.BusinessException;
 import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
-import com.ubivelox.iccard.task.HmcSubTask;
-import com.ubivelox.iccard.task.SubTask;
+import com.ubivelox.iccard.task.CxTask;
 import com.ubivelox.iccard.task.HmcProtocol;
-import com.ubivelox.iccard.task.c0.C0Protocol;
+import com.ubivelox.iccard.util.ByteUtils;
 import com.ubivelox.iccard.util.HexUtils;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.util.HashMap;
 
 @TaskData(taskCd = "C1", taskName = "비밀번호, 계좌번호, 출금금액 복호화")
-public class C1Task extends HmcSubTask {
+public class C1Task extends CxTask {
 
     @Override
     public HmcProtocol.Response doLogic(HmcProtocol.Request request, long sessionId, String transId) {
@@ -44,10 +43,31 @@ public class C1Task extends HmcSubTask {
             String pin = c1Req.getEncPwd();
             log.info("PIN : [{}]", pin);
             String decryptPin = decryptUnpad80(pin, sessionKey, IPkcsMechanism.SEED_VENDOR_CBC, log);
+            log.info("decryptPin : [{}]", decryptPin);
+
+            String crn2 = c1Req.getCrn2();
+            log.info("crn2 : {}", crn2);
+            SecretKeySpec tempKey2 = encAndMakeKey(crn2, encDkKey, IPkcsMechanism.SEED_VENDOR_CBC, Constants.NoPadding, log);
+            log.info("tempKey2 : {}", HexUtils.toHexString(tempKey2.getEncoded()));
+
+            SecretKeySpec sessionKey2 = encAndMakeKey(trn, tempKey2, IPkcsMechanism.SEED_VENDOR_CBC, Constants.NoPadding, log);
+            log.info("sessionKey2 : {}", HexUtils.toHexString(sessionKey2.getEncoded()));
+
+            // 계좌번호 복호화
+            String encAccountInfo = c1Req.getEncAccountNum() + c1Req.getEncAmount();
+            log.info("encAccountInfo : [{}]", encAccountInfo);
+            byte[] decAccountInfo = decrypt(encAccountInfo, sessionKey2, IPkcsMechanism.SEED_VENDOR_CBC, log);
+            byte[] bAccountNum = ByteUtils.cutByteArray(decAccountInfo, 0, 16);
+            byte[] bAmount = ByteUtils.cutByteArray(decAccountInfo, 16, 16);
+            String accountNum = new String(HexUtils.unpad80(bAccountNum, IPkcsMechanism.SEED_VENDOR_CBC.getBlockSize()));
+            log.info("accountNum : [{}]", accountNum);
+            String amount = new String(HexUtils.unpad80(bAmount, IPkcsMechanism.SEED_VENDOR_CBC.getBlockSize()));
+            log.info("amount : [{}]", amount);
+
 
             resultMap.put(Constants.PIN, decryptPin);
-            resultMap.put(Constants.ACCOUNT_NUMBER, "12345678910");
-            resultMap.put(Constants.AMOUNT, "100000");
+            resultMap.put(Constants.ACCOUNT_NUMBER, accountNum);
+            resultMap.put(Constants.AMOUNT, amount);
             HmcProtocol.Response response = request.generateResponse(request, Constants.SUCCESS, resultMap);
             log.info("RESPONSE DATA {}", response);
 
@@ -77,9 +97,11 @@ public class C1Task extends HmcSubTask {
         return decryptPin;
     }
 
-    private SecretKeySpec makeDkKey(long sessionId, String csn, long encKeyId, CustomLog log) {
-        byte[] dkData = makeXorDataWithCsn(csn);
-        log.info("dkData[{}] = {}",dkData.length, HexUtils.toHexString(dkData));
-        return encAndMakeKey(sessionId, encKeyId, dkData, IPkcsMechanism.SEED_VENDOR_CBC);
+    private byte[] decrypt(String encData, SecretKeySpec sessionKey, IPkcsMechanism iPkcsMechanism, CustomLog log) {
+        byte[] bEncData = HexUtils.toByteArray(encData);
+        log.info("bEncData : {}", HexUtils.toHexString(bEncData));
+        byte[] decData = decryptJce(bEncData, iPkcsMechanism, sessionKey, Constants.NoPadding);
+        log.info("decData : {}", HexUtils.toHexString(decData));
+        return decData;
     }
 }

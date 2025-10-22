@@ -21,7 +21,7 @@ public class B5Test {
 
     @DisplayName("B5 Test")
     @Test
-    void key_40() {
+    void test() {
         String result = jobProcess.processB5("019263141187048110B81A7FEACA6E7F1AE130444AC815FDD9498949  ");
 //        String result = jobProcess.processB5("015898336179900016E23D129045B286F7A05D4BB6C4651C015BD3BE9D7042F0D3");
         log.info("result={}", result);

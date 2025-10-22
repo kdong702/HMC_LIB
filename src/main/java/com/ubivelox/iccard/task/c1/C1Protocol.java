@@ -51,11 +51,11 @@ public class C1Protocol {
     public static class Response implements HmcProtocol.Response {
         @FieldData(fieldName = "응답코드", length = 8)
         private String resCode;
-        @FieldData(fieldName = "복호화된 비밀번호", length = 8)
+        @FieldData(fieldName = "복호화된 비밀번호", length = 4)
         private String pin;
-        @FieldData(fieldName = "복호화된 출금계좌번호", length = 32)
+        @FieldData(fieldName = "복호화된 출금계좌번호", length = 16)
         private String accountNum;
-        @FieldData(fieldName = "복호화된 출금금액", length = 32)
+        @FieldData(fieldName = "복호화된 출금금액", length = 16)
         private String amount;
     }
 }

@@ -11,6 +11,7 @@ import com.ubivelox.iccard.pkcs.constant.ITemplate;
 import com.ubivelox.iccard.util.HexUtils;
 import com.ubivelox.iccard.util.PropertyReader;
 import iaik.pkcs.pkcs11.wrapper.CK_ATTRIBUTE;
+import iaik.pkcs.pkcs11.wrapper.CK_MECHANISM;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -65,7 +66,6 @@ public class SubTask implements ITask {
             throw new BusinessException(ErrorCode.NOT_FOUND_SLOT);
         }
         if (slot.getSessionId() == 0) { // 최초의 1번 로그인 필요
-//            PropertyReader reader = new PropertyReader("src/main/resources/application.properties");
             String slotPassword = PropertyReader.getProperty("pkcs11.slot.password");
             log.debug("pkcs11 slot password : " + slotPassword);
             pkcs11Wrapper.loginSession(slotLabel, slotPassword); // 로그인한 세션은 항상 유지
@@ -99,44 +99,6 @@ public class SubTask implements ITask {
         log.info("findObj keyId={}", keyId);
         return keyId;
     }
-
-
-//    protected byte[] encrypt(long sessionId, long encKey, Object plainData, IPkcsMechanism mechanism) {
-//        byte[] bPlainData = new byte[0];
-//        if (plainData instanceof String) {
-//            bPlainData = HexUtils.toByteArray((String)plainData);
-//        } else if (plainData instanceof byte[]) {
-//            bPlainData = (byte[]) plainData;
-//        } else {
-//            log.error("class={}", plainData.getClass());
-//            throw new LibException(LibErrorCode.INVALID_TYPE);
-//        }
-//
-//        byte[] iv = mechanism.getIv();
-//        CK_MECHANISM ckMechanism = PkcsMechanism.makeMechanism(mechanism, iv);
-//        byte[] bEncData = pkcs11Wrapper.encrypt(sessionId, ckMechanism, encKey, bPlainData);
-//        log.debug("encryptData bEncData: {}", HexUtils.toHexString(bEncData));
-//        return bEncData;
-//    }
-//
-//    protected byte[] decrypt(long sessionId, long decKey, Object plainData, PkcsMechanism mechanism) {
-//        byte[] bPlainData = new byte[0];
-//        if (plainData instanceof String) {
-//            bPlainData = HexUtils.toByteArray((String)plainData);
-//        } else if (plainData instanceof byte[]) {
-//            bPlainData = (byte[]) plainData;
-//        } else {
-//            log.error("class={}", plainData.getClass());
-//            throw new LibException(LibErrorCode.INVALID_TYPE);
-//        }
-//        byte[] iv = mechanism.getIv();
-//        CK_MECHANISM ckMechanism = PkcsMechanism.makeMechanism(mechanism, iv);
-//        byte[] bDecData = pkcs11Wrapper.decrypt(sessionId, ckMechanism, decKey, bPlainData);
-//        log.debug("decryptData bDecData: {}", HexUtils.toHexString(bDecData));
-//        return bDecData;
-//    }
-//
-//
 
     protected SecretKeySpec createObjJce(byte[] keyValue, IPkcsMechanism pkcsMechanism) {
 
@@ -210,5 +172,32 @@ public class SubTask implements ITask {
         byte[] fullEncData = encryptJce(kcvData, pkcsMechanism, key, Constants.NoPadding);
         System.arraycopy(fullEncData, 0, result, 0, 3);
         return result;
+    }
+
+    protected byte[] encrypt(long sessionId, long encKey, byte[] plainData, IPkcsMechanism pkcsMechanism) {
+        byte[] iv =  pkcsMechanism.getIv();
+        return encryptDataWithIv(sessionId, encKey, plainData, pkcsMechanism, iv);
+    }
+
+    protected byte[] encryptDataWithIv(long sessionId, long encKey, byte[] plainData, IPkcsMechanism pkcsMechanism, byte[] iv) {
+        CK_MECHANISM ckMechanism = IPkcsMechanism.makeMechanism(pkcsMechanism, iv);
+        byte[] bEncData = pkcs11Wrapper.encrypt(sessionId, ckMechanism, encKey, plainData);
+        log.info("encryptData bEncData: {}", HexUtils.toHexString(bEncData));
+        return bEncData;
+    }
+
+    protected SecretKeySpec encAndMakeKey(long sessionId, long encKey, byte[] plainData, IPkcsMechanism pkcsMechanism) {
+        byte[] bEncData = encrypt(sessionId, encKey, plainData, pkcsMechanism);
+        return makeKeyHandleWithEncData(bEncData, pkcsMechanism);
+    }
+
+
+    protected SecretKeySpec makeKeyHandleWithEncData(byte[] bEncData, IPkcsMechanism pkcsMechanism)  {
+        if (StringUtils.equals(pkcsMechanism.getParityYn(), Constants.YES)) {
+            log.info("bEncData 적용 전: {}", HexUtils.toHexString(bEncData));
+            log.info("makeOddParity 적용");
+            bEncData = HexUtils.makeOddParity(bEncData);
+        }
+        return createObjJce(bEncData, pkcsMechanism);
     }
 }

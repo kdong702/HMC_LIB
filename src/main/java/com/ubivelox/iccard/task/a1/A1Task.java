@@ -7,10 +7,8 @@ import com.ubivelox.iccard.common.CustomLog;
 import com.ubivelox.iccard.exception.BusinessException;
 import com.ubivelox.iccard.exception.ErrorCode;
 import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
-import com.ubivelox.iccard.task.HmcSubTask;
-import com.ubivelox.iccard.task.SubTask;
+import com.ubivelox.iccard.task.AxTask;
 import com.ubivelox.iccard.task.HmcProtocol;
-import com.ubivelox.iccard.task.a2.A2Protocol;
 import com.ubivelox.iccard.util.ByteUtils;
 import com.ubivelox.iccard.util.HexUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -19,7 +17,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.util.HashMap;
 
 @TaskData(taskCd = "A1", taskName = "CARD Manager 인증")
-public class A1Task extends HmcSubTask {
+public class A1Task extends AxTask {
 
     @Override
     public HmcProtocol.Response doLogic(HmcProtocol.Request request, long sessionId, String transId) {
@@ -107,69 +105,7 @@ public class A1Task extends HmcSubTask {
     }
 
 
-    private byte[] makeCcMac(String trn, String crn, CustomLog log, SecretKeySpec encSkKey) {
-        byte[] cc = makeCcData(trn, crn, log, encSkKey);
-        log.info("cc = {}", HexUtils.toHexString(cc));
-        return HexUtils.findLastBlockData(cc, IPkcsMechanism.DES3_CBC.getBlockSize(), 8);
-    }
 
-    private byte[] makeCcData(String hrn, String crn, CustomLog log, SecretKeySpec encSkKey) {
-        byte[] cc1Data = makeCcDataWithPad(hrn, crn);
-        log.info("ccData[{}] = {}",cc1Data.length, HexUtils.toHexString(cc1Data));
-        return encryptJce(cc1Data, IPkcsMechanism.DES3_CBC, encSkKey, Constants.NoPadding);
-    }
-
-    private SecretKeySpec makeSessionKey(byte[] skData, SecretKeySpec encDkKey, IPkcsMechanism mechanism, CustomLog log) {
-        byte[] encSkData = encryptJce(skData, mechanism, encDkKey, Constants.NoPadding);
-        log.info("encSkData[{}] = {}", encSkData.length, HexUtils.toHexString(encSkData));
-        // TODO Chiper 는 DDES 가 없으므로 3DES 로 처리 후 가공 필요
-        byte[] encSk16Data = ByteUtils.cutByteArray(encSkData, 0, 16);
-        byte[] encSk24Data = ByteUtils.copyArray(encSk16Data, encSk16Data, 16, 8);
-        return createObjJce(encSk24Data, mechanism);
-    }
-
-    private SecretKeySpec makeDkKey(long sessionId, String kdd, long encKeyId, CustomLog log, int tagFlag) {
-        byte[] encDkData = makeDkDataWithTag(kdd, tagFlag);
-        log.info("encDkData[{}] = {}",encDkData.length, HexUtils.toHexString(encDkData));
-        byte[] encDk24Data = ByteUtils.copyArray(encDkData, encDkData, 16, 8);
-        return encAndMakeKey(sessionId, encKeyId, encDk24Data, IPkcsMechanism.DES2_DES3_ECB);
-    }
-
-    protected byte[] getMacPad(byte[] hostCryptogram) {
-        byte[] apdu = new byte[]{(byte) 0x84, (byte) 0x82, (byte) 0x00, (byte) 0x00, (byte) 0x10};
-        return ByteUtils.copyArrayWithPad(apdu, hostCryptogram, 16);
-    }
-
-    protected byte[] makeMacWithApdu(SecretKeySpec sessionKey, byte[] hostCryptogram,  CustomLog log, int type) {
-        byte[] apdu = new byte[]{(byte) 0x84, (byte) 0x82, (byte) 0x00, (byte) 0x00, (byte) 0x10};
-        byte[] bMacPad = getMacPad(hostCryptogram);
-        log.info("bMacPad[{}]: {}", bMacPad.length, HexUtils.toHexString(bMacPad));
-
-        if (type == 1) {
-            byte[] mac = encryptJce(bMacPad, IPkcsMechanism.DES3_CBC, sessionKey, Constants.NoPadding);
-            log.info("mac: {}", HexUtils.toHexString(mac));
-            byte[] macApdu = ByteUtils.copyArrays(apdu, hostCryptogram, HexUtils.findLastBlockData(mac, 8, 8));
-            log.info("macApdu[{}]: {}", macApdu.length, HexUtils.toHexString(macApdu));
-            return macApdu;
-        } else {
-
-            byte[] encData = new byte[8];
-            byte[] temp = new byte[8];
-            byte[] encXTemp = new byte[8];
-            SecretKeySpec aHandle = createObjJce(ByteUtils.cutByteArray(sessionKey.getEncoded(), 0, 8), IPkcsMechanism.DES_ECB);
-
-            for (int idx = 0; idx < bMacPad.length; idx += IPkcsMechanism.DES_ECB.getBlockSize()) {
-                System.arraycopy(bMacPad, idx, temp, 0, 8);
-                encXTemp = ByteUtils.xor(temp, encData);
-                encData = encryptJce(encXTemp, IPkcsMechanism.DES_ECB, aHandle, Constants.NoPadding);
-            }
-            byte[] mac = encryptJce(encXTemp, IPkcsMechanism.DES3_ECB, sessionKey, Constants.NoPadding);
-            log.info("mac: {}", HexUtils.toHexString(mac));
-            byte[] macApdu = ByteUtils.copyArrays(apdu, hostCryptogram, mac);
-            log.info("macApdu[{}]: {}", macApdu.length, HexUtils.toHexString(macApdu));
-            return macApdu;
-        }
-    }
 
 
 }
