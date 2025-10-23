@@ -32,7 +32,25 @@
 		</layout>
 	</appender>
 
-    <logger name="com.ubivelox.iccard" level="INFO"/>
+<!--	&lt;!&ndash; ICARD 전용 파일 appender &ndash;&gt;-->
+<!--	<appender name="ICARD_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">-->
+<!--		<file>${LOG_PATH}/iccard.log</file>-->
+<!--		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">-->
+<!--			<fileNamePattern>./log/iccard_%d{yyyyMMdd}_%i.log.zip</fileNamePattern>-->
+<!--			<maxHistory>30</maxHistory>-->
+<!--			<timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">-->
+<!--				<maxFileSize>100MB</maxFileSize>-->
+<!--			</timeBasedFileNamingAndTriggeringPolicy>-->
+<!--		</rollingPolicy>-->
+<!--		<encoder>-->
+<!--			<pattern>${LOG_PATTERN}</pattern>-->
+<!--		</encoder>-->
+<!--	</appender>-->
+
+<!--	&lt;!&ndash; 특정 패키지 이하 로그를 ICARD_FILE 로만 기록 &ndash;&gt;-->
+<!--	<logger name="com.ubivelox.iccard" level="INFO" additivity="false">-->
+<!--		<appender-ref ref="ICARD_FILE"/>-->
+<!--	</logger>-->
 
 	<root level="INFO">
 		<appender-ref ref="STDOUT" />

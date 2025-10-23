@@ -44,6 +44,10 @@ public class IaikPKCSWrapper {
     public void initPKCS11(String libFile, String slotPassword, HashMap<String, Slot> copySlotMap) {
         slotMap.clear();
         try {
+            if (pkcs11 != null) { // 종료 호출
+                pkcs11api = pkcs11.getPKCS11Module();
+                pkcs11api.finalize();
+            }
             pkcs11 = PKCS11Module.getInstance(libFile); // 처음 시작할때,
             pkcs11api = pkcs11.getPKCS11Module();
             pkcs11.initialize();
@@ -52,6 +56,8 @@ public class IaikPKCSWrapper {
         } catch (Exception e) {
             log.error(e.getMessage(), e);
             throw new BusinessException(ErrorCode.ERR_HSM_INIT);
+        } catch (Throwable e) {
+            throw new BusinessException(ErrorCode.ERR_HSM_FINALIZE);
         }
     }
 

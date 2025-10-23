@@ -32,4 +32,18 @@ public class C0Test {
         log.info("expect={}", expect);
         Assertions.assertEquals(expect, result);
     }
+
+    @DisplayName("C0 Test_Confluence")
+    @Test
+    void C0_TEST_Confluence() {
+        String result = jobProcess.processC0("9263141187048110E8401EA79B780BE43DD9887589F7AE3B31313131313131313131313131313131CC9561665327EC2E567EB59C3E0D995601");
+
+        log.info("result={}", result);
+        String resCode = "00000000";
+        String pwd = "1234";
+
+        String expect = resCode + pwd;
+        log.info("expect={}", expect);
+        Assertions.assertEquals(expect, result);
+    }
 }
