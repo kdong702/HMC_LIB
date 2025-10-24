@@ -61,6 +61,12 @@ public class IaikPKCSWrapper {
         }
     }
 
+    public void checkInit() {
+        if (pkcs11 == null || pkcs11api == null) {
+            throw new BusinessException(ErrorCode.INIT_FIRST);
+        }
+    }
+
     private void initSlotMap(String slotPassword, HashMap<String, Slot> copySlotMap) throws PKCS11Exception {
         org.xipki.pkcs11.wrapper.Slot[] slots = pkcs11.getSlotList(false);
 
@@ -107,10 +113,7 @@ public class IaikPKCSWrapper {
         }
     }
 
-    public void syncPKCS11(String libFile, String slotPassword, HashMap<String, Slot> copySlotMap) {
-        finalizePCKS11();
-        initPKCS11(libFile, slotPassword, copySlotMap);
-    }
+
 
     public void finalizePCKS11() {
         try {
@@ -132,7 +135,6 @@ public class IaikPKCSWrapper {
             sessionId = pkcs11api.C_OpenSession(slotId, PKCS11Constants.CKF_RW_SESSION | PKCS11Constants.CKF_SERIAL_SESSION, null, null);
             log.debug("Slot OpenSession 성공 ={}, sessionId={}", slotLabel, sessionId);
         } catch (PKCS11Exception e) {
-            // 에러메시지 정리 불가 -> front단에서 slotLabel substring 하여 사용
             throw new BusinessException(ErrorCode.ERR_C_OPEN_SESSION ,String.format("[%s]: Slot openSession 실패하였습니다.", slotLabel));
         }
         return sessionId;
@@ -158,7 +160,6 @@ public class IaikPKCSWrapper {
                 throw new BusinessException(ErrorCode.ERR_C_LOGIN, String.format("[%s]: Slot PIN LOCKED 상태입니다. 잠시후 다시 시도해주세요.", slotLabel));
             }
             log.error(pe.getMessage());
-//            log.error(pe.getMessage(), pe);
             slot.setSessionId(0);
             slot.setStatus(Constants.NO);
             closeSession(sessionId);
@@ -178,23 +179,6 @@ public class IaikPKCSWrapper {
         }
     }
 
-    /**
-     * 임시로 틀린 비밀번호 setting 안할 경우, 1분마다 성공했던 비밀번호로 시도를 하게됨
-     */
-    public void logoutSession(String slotLabel, long sessionId) {
-        Slot slot = slotMap.get(slotLabel);
-        try {
-            pkcs11api.C_Logout(sessionId);
-            slot.setSessionId(0);
-            slot.setStatus(Constants.NO);
-            slot.setSlotPassword("0");
-        } catch (PKCS11Exception pe) {
-            log.error(pe.getMessage(), pe);
-            throw new BusinessException(ErrorCode.ERR_C_LOGOUT, String.format("[%s]: logout Session 실패하였습니다.", sessionId));
-        }
-        closeSession(sessionId);
-    }
-
     public long findObject(long sessionId, CK_ATTRIBUTE template[]){
         long key = 0;
         try {
@@ -212,63 +196,6 @@ public class IaikPKCSWrapper {
         }
         return key;
     }
-
-    public long createObject(long sessionId, CK_ATTRIBUTE[] template) {
-        long key = 0;
-        try {
-            key = pkcs11api.C_CreateObject(sessionId, template, false);
-        } catch (PKCS11Exception e) {
-            log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.ERR_C_CREATE_OBJECT);
-        }
-        return key;
-    }
-
-    public long deriveKey(long sessionId, CK_MECHANISM mechanism, long baseKey, long keyType) {
-        long key = 0;
-        try {
-            CK_ATTRIBUTE[] template = ITemplate.deriveKeyTemplate(keyType);
-            key = pkcs11api.C_DeriveKey(sessionId, mechanism, baseKey, template, false);
-        } catch (PKCS11Exception e) {
-            log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.ERR_C_DERIVE_KEY);
-        }
-        return key;
-    }
-
-    public long generateObject(long sessionId, CK_MECHANISM mechanism, CK_ATTRIBUTE[] template) {
-        long key = 0;
-        try {
-            key = pkcs11api.C_GenerateKey(sessionId, mechanism, template, false);
-        } catch (PKCS11Exception e) {
-            log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.ERR_C_GENERATE_OBJECT);
-        }
-        return key;
-    }
-
-    public long[] createObjectPair(long sessionId, CK_ATTRIBUTE[] publicTemplate, CK_ATTRIBUTE[] privateTemplate) {
-        long[] key = new long[2];
-        CK_MECHANISM ckMechanism = new CK_MECHANISM();
-        ckMechanism.mechanism = CKM_RSA_PKCS_KEY_PAIR_GEN;
-        try {
-            key = pkcs11api.C_GenerateKeyPair(sessionId, ckMechanism, publicTemplate, privateTemplate, false);
-        } catch (PKCS11Exception e) {
-            log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.ERR_C_CREATE_OBJECT);
-        }
-        return key;
-    }
-
-    public void destroyObject(long sessionId, long ObjKey) {
-        try {
-            pkcs11api.C_DestroyObject(sessionId, ObjKey);
-        } catch (PKCS11Exception e) {
-            throw new BusinessException(ErrorCode.ERR_C_DESTROY_OBJECT);
-        }
-    }
-
-
 
     public byte[] encrypt(long sessionId, CK_MECHANISM mechanism, long keyId, byte[] plainData) {
         byte[] result;

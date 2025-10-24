@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 public enum ErrorCode {
 
     // TASK 에러
-    NOT_FOUND_SLOT                      ("900005",   "NOT_FOUND_SLOT"),
     INVALID_PROTOCOL_LENGTH             ("HD300001",   "INVALID_PROTOCOL_LENGTH"),
     INVALID_KEY_LABEL                   ("HD300002",   "INVALID_KEY_LABEL"),
     NOT_USE_ALGORITHM                   ("HD300003",  "INVALID_ALGORITHM"),
@@ -17,14 +16,16 @@ public enum ErrorCode {
     INVALID_SCP_TYPE                    ("HD300006",  "INVALID_SCP_TYPE"),
     INVALID_TAG_FLAG                    ("HD300007",  "INVALID_TAG_FLAG"),
     AUTH_FAIL                           ("HD300008",  "AUTH_FAIL"),
+    INIT_FIRST                          ("HD300009",  "INIT_FIRST"),
+    NOT_FOUND_SLOT                      ("HD300010",  "NOT_FOUND_SLOT"),
 
     // PKCS 에러
     ERR_HANDLE_ENC_DATA                 ("CS0220",   "암호화 오류입니다."),
-    ERR_HSM_INIT                        ("CS0030",   "HSM 초기화에 실패하였습니다."),
-    ERR_HSM_SYNC                        ("CS0033",   "HSM 동기화에 실패하였습니다."),
-    ERR_HSM_FINALIZE                    ("CS0031",   "HSM 종료에 실패하였습니다."),
     ERR_NOT_EXIST_DATA                  ("CS0023",   "데이터 형식이 잘못되어 있습니다."),
     ERR_NOT_VALID_CHARSET               ("CS0024",   "문자열 형식이 잘못되어 있습니다."),
+    ERR_HSM_INIT                        ("CS0030",   "HSM 초기화에 실패하였습니다."),
+    ERR_HSM_FINALIZE                    ("CS0031",   "HSM 종료에 실패하였습니다."),
+    ERR_HSM_SYNC                        ("CS0033",   "HSM 동기화에 실패하였습니다."),
 
     ERR_C_OPEN_SESSION                  ("HS100001",   "C_OpenSession PKCS11Exception."),
     ERR_C_GET_MECHANISM_LIST            ("HS100002",   "C_GetMechanismList PKCS11Exception."),

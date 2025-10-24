@@ -52,9 +52,15 @@ public class HmcContext<T extends HmcProtocol.Request> {
             log.info("Open Session ID : {}", sessionId);
         } catch (Exception e) {
             log.error(e.getMessage(), e);
-            HmcProtocol.Response error = request.generateError(ErrorCode.ERR_C_OPEN_SESSION.getCode());
+            String errorCode;
+            if (e instanceof BusinessException) {
+                errorCode = ((BusinessException) e).getErrorCode().getCode();
+            } else {
+                errorCode = ErrorCode.ERR_C_OPEN_SESSION.getCode();
+            }
+            HmcProtocol.Response error = request.generateError(errorCode);
             String errorResponse = error.getResult(charset);
-            log.info("RESULT({})= [{}]", errorResponse.length(),errorResponse);
+            log.info("RESULT({})= [{}]", errorResponse.length(), errorResponse);
             log.info("============================ {} ({}) Task End ============================", taskName, taskCd);
             return errorResponse;
         }

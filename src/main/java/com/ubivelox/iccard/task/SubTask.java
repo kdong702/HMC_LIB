@@ -59,6 +59,7 @@ public class SubTask implements ITask {
     }
 
     public long openSession(String slotLabel) {
+        pkcs11Wrapper.checkInit();
         HashMap<String, Slot> slotMap = pkcs11Wrapper.getSlotMap();
         Slot slot = slotMap.get(slotLabel);
         if (slot == null) {

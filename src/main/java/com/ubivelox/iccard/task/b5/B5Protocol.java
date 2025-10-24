@@ -31,7 +31,7 @@ public class B5Protocol {
 
         @Override
         public HmcProtocol.Response generateError(String resCode) {
-            return new Response(resCode, "errorTest", "");
+            return new Response(resCode, "", "");
         }
     }
 
