@@ -79,4 +79,16 @@ public class A1Test {
         log.info("expect={}", expect);
         Assertions.assertEquals(result, expect);
     }
+
+    @DisplayName("0 Test")
+    @Test
+    void zero_test() {
+        String result = jobProcess.processA1("000000000000000000000000000000000000000000000000000000000000000000000000");
+        log.info("result={}", result);
+        String resCode = "00000000";
+        String authApdu = "000000000000000000000000000000000000000000";
+        String expect = resCode + authApdu;
+        log.info("expect={}", expect);
+        Assertions.assertEquals(result, expect);
+    }
 }

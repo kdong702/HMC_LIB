@@ -54,12 +54,20 @@ public class JobProcess {
     }
 
     public String processA1(String request) {
+        String byPass = StringUtils.rightPad("", 72, "0");
+        if (StringUtils.equals(byPass, request)) {
+            return StringUtils.rightPad("", 50, "0");
+        }
         A1Task task = new A1Task();
         HmcContext hyundaiContext = new HmcContext(task, A1Protocol.Request.class);
         return hyundaiContext.execute(request, charset);
     }
 
     public String processA2(String request) {
+        String byPass = StringUtils.rightPad("", 72, "0");
+        if (StringUtils.equals(byPass, request)) {
+            return StringUtils.rightPad("", 194, "0");
+        }
         A2Task task = new A2Task();
         HmcContext hyundaiContext = new HmcContext(task, A2Protocol.Request.class);
         return hyundaiContext.execute(request, charset);
