@@ -1,7 +1,7 @@
 package com.ubivelox.iccard;
 
 import com.ubivelox.iccard.common.Constants;
-import com.ubivelox.iccard.pkcs.IaikPKCSWrapper;
+import com.ubivelox.iccard.common.LogbackFallbackInitializer;
 import com.ubivelox.iccard.task.HmcContext;
 import com.ubivelox.iccard.task.SubTask;
 import com.ubivelox.iccard.task.a1.A1Protocol;
@@ -30,10 +30,10 @@ import org.apache.commons.lang3.StringUtils;
 @Slf4j
 @NoArgsConstructor
 public class JobProcess {
-    protected static IaikPKCSWrapper pkcs11Wrapper = new IaikPKCSWrapper();
     protected String charset = PropertyReader.getProperty("character.encoding");
 
     public Long initLibrary() {
+        LogbackFallbackInitializer.init();
         SubTask subTask = new SubTask();
         String test = subTask.initModule();
         if (StringUtils.equals(Constants.YES, test)) {

@@ -19,21 +19,6 @@ public class PropertyReader {
     private static synchronized void loadIfNeeded() {
         if (!PROPS.isEmpty()) return;
 
-        // 1) 외부 파일 (system property -> env)
-        String external = System.getProperty("config.file");
-        if (external == null || external.isEmpty()) external = System.getenv("CONFIG_FILE");
-        if (external != null && !external.isEmpty()) {
-            Path p = Path.of(external);
-            if (Files.exists(p)) {
-                try (InputStream is = Files.newInputStream(p)) {
-                    PROPS.load(is);
-                    log.info("Loaded properties from external file: {}", p);
-                    return;
-                } catch (IOException e) {
-                    log.warn("Cannot load external properties {}: {}", p, e.getMessage());
-                }
-            }
-        }
 
         // 2) 클래스패스 - 여러 방식으로 시도 (특히 Spring Boot fat JAR / nested JAR 대응)
         // 2.1 현재 클래스의 리소스 (같은 JAR이나 nested JAR에서 찾기 용이)

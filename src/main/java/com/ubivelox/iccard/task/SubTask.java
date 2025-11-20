@@ -90,7 +90,7 @@ public class SubTask implements ITask {
             log.error("findObj keyLabel is empty");
             throw new BusinessException(ErrorCode.INVALID_KEY_LABEL);
         }
-        if(!StringUtils.equals(PropertyReader.getProperty("profile"), "prod")){
+        if(!StringUtils.equalsAnyIgnoreCase(PropertyReader.getProperty("profile"), "prod", "stage")){
             keyLabel = "TEST_" + keyLabel;
         }
         log.info("findObj sessionId={}, keyLabel={}", sessionId, keyLabel);

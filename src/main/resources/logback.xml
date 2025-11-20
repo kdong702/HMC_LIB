@@ -2,59 +2,48 @@
 <configuration>
 
 	<include resource="org/springframework/boot/logging/logback/defaults.xml" />
-	
 	<include resource="org/springframework/boot/logging/logback/console-appender.xml" />
 
 	<property name="LOG_PATTERN" value="%-3level [%d{yyyy-MM-dd HH:mm:ss.SSS}] %logger{5} - %msg %n" />
-	
-	<!-- FILE Appender -->
-	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-		<file>./log/cas.log</file>
-		<!-- 일자별로 로그파일 적용하기 --> 
-		<!-- 일자별 로그파일 xml설정을 해주면 일별로 로그파일이 기록으로 남는다. -->
+
+	<property resource="hsm_lib.properties"/>
+	<property name="LOG_PATH" value="${hsm.log.path}" />
+	<property name="LOG_FILE_NAME" value="${hsm.log.fileName}" />
+	<property name="LOG_MAX_DAY" value="${hsm.log.maxDay}" />
+	<property name="LOG_MAX_FILE_SIZE" value="${hsm.log.maxFileSize}" />
+
+	<!-- FILE Appender (오직 com.ubivelox.iccard 로그를 위해 사용) -->
+	<!--ICARD 전용 파일 appender -->
+	<appender name="ICCARD" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>./hsm_logs/iccard.log</file>
 		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-			<!-- .gz,.zip 등을 넣으면 자동 일자별 로그파일 압축 -->
-			<fileNamePattern>./log/cas_%d{yyyyMMdd}_%i.log.zip</fileNamePattern>
-			<maxHistory>30</maxHistory> <!-- 일자별 백업파일의 보관기간 -->
+			<fileNamePattern>./hsm_logs/iccard_%d{yyyyMMdd}_%i.log.zip</fileNamePattern>
+			<maxHistory>30</maxHistory>
 			<timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
 				<maxFileSize>100MB</maxFileSize>
 			</timeBasedFileNamingAndTriggeringPolicy>
 		</rollingPolicy>
 		<encoder>
-			 <pattern>${LOG_PATTERN}</pattern>
+			<pattern>${LOG_PATTERN}</pattern>
 		</encoder>
 	</appender>
 
-	<!-- 	Console에 로그를 찍기위해 사용 append 설정은 STDOUT 이라는 변수명으로 저장-->
-	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+	<!-- Console Appender (루트 레벨은 콘솔만 출력) -->
+	<appender name="STDOUTLIB" class="ch.qos.logback.core.ConsoleAppender">
 		<layout class="ch.qos.logback.classic.PatternLayout">
-			 <pattern>${LOG_PATTERN}</pattern>
+			<pattern>${LOG_PATTERN}</pattern>
 		</layout>
 	</appender>
 
-<!--	&lt;!&ndash; ICARD 전용 파일 appender &ndash;&gt;-->
-<!--	<appender name="ICARD_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">-->
-<!--		<file>${LOG_PATH}/iccard.log</file>-->
-<!--		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">-->
-<!--			<fileNamePattern>./log/iccard_%d{yyyyMMdd}_%i.log.zip</fileNamePattern>-->
-<!--			<maxHistory>30</maxHistory>-->
-<!--			<timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">-->
-<!--				<maxFileSize>100MB</maxFileSize>-->
-<!--			</timeBasedFileNamingAndTriggeringPolicy>-->
-<!--		</rollingPolicy>-->
-<!--		<encoder>-->
-<!--			<pattern>${LOG_PATTERN}</pattern>-->
-<!--		</encoder>-->
-<!--	</appender>-->
+	<!-- com.ubivelox.iccard 패키지 전용 로거: 파일과 콘솔 모두 기록하되 additivity=false 로 루트 중복 방지 -->
+	<logger name="com.ubivelox.iccard" level="INFO" additivity="false">
+		<appender-ref ref="ICCARD"/>
+		<appender-ref ref="STDOUTLIB"/>
+	</logger>
 
-<!--	&lt;!&ndash; 특정 패키지 이하 로그를 ICARD_FILE 로만 기록 &ndash;&gt;-->
-<!--	<logger name="com.ubivelox.iccard" level="INFO" additivity="false">-->
-<!--		<appender-ref ref="ICARD_FILE"/>-->
-<!--	</logger>-->
+	<!-- 다른 패키지는 콘솔(또는 필요시 더 높은 레벨)만 기록 -->
+<!--	<root level="WARN">-->
+<!--		<appender-ref ref="STDOUTLIB" />-->
+<!--	</root>-->
 
-	<root level="INFO">
-		<appender-ref ref="STDOUT" />
-		<appender-ref ref="FILE" />
-	</root>
-	
 </configuration>
