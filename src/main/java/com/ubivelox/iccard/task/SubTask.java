@@ -2,12 +2,13 @@ package com.ubivelox.iccard.task;
 
 import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
-import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.CasException;
 import com.ubivelox.iccard.exception.ErrorCode;
 import com.ubivelox.iccard.pkcs.IaikPKCSWrapper;
 import com.ubivelox.iccard.pkcs.Slot;
 import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
 import com.ubivelox.iccard.pkcs.constant.ITemplate;
+import com.ubivelox.iccard.util.Base64Utils;
 import com.ubivelox.iccard.util.HexUtils;
 import com.ubivelox.iccard.util.PropertyReader;
 import iaik.pkcs.pkcs11.wrapper.CK_ATTRIBUTE;
@@ -29,33 +30,21 @@ public class SubTask implements ITask {
 
     protected static IaikPKCSWrapper pkcs11Wrapper = new IaikPKCSWrapper();
 
-    public String initModule() {
-        try {
+    public void initModule() {
             CustomLog log = new CustomLog();
             String lib = PropertyReader.getProperty("pkcs11.lib");
             log.info("pkcs11 lib path : " + lib);
             String slotPassword = PropertyReader.getProperty("pkcs11.slot.password");
-            log.info("pkcs11 slot password : " + slotPassword);
+            slotPassword = Base64Utils.decodeEnc(slotPassword);
 
             pkcs11Wrapper.initPKCS11(lib, slotPassword, null);
             log.info("pkcs11 initPKCS11 success");
-            return Constants.YES;
-        } catch (Exception e) {
-            log.error(e.getMessage(), e);
-            return Constants.NO;
-        }
     }
 
-    public String finalModule() {
-        try {
-            CustomLog log = new CustomLog();
-            pkcs11Wrapper.finalizePCKS11();
-            log.info("pkcs11 finalizePCKS11 success");
-            return Constants.YES;
-        } catch (Exception e) {
-            log.error(e.getMessage(), e);
-            return Constants.NO;
-        }
+    public void finalModule() {
+        CustomLog log = new CustomLog();
+        pkcs11Wrapper.finalizePCKS11();
+        log.info("pkcs11 finalizePCKS11 success");
     }
 
     public long openSession(String slotLabel) {
@@ -64,15 +53,19 @@ public class SubTask implements ITask {
         Slot slot = slotMap.get(slotLabel);
         if (slot == null) {
             log.error("slotLabel={} not found", slotLabel);
-            throw new BusinessException(ErrorCode.NOT_FOUND_SLOT);
+            throw new CasException(ErrorCode.NOT_FOUND_SLOT);
         }
         if (slot.getSessionId() == 0) { // 최초의 1번 로그인 필요
             String slotPassword = PropertyReader.getProperty("pkcs11.slot.password");
+            slotPassword = Base64Utils.decodeEnc(slotPassword);
+
             log.debug("pkcs11 slot password : " + slotPassword);
             pkcs11Wrapper.loginSession(slotLabel, slotPassword); // 로그인한 세션은 항상 유지
         }
         return pkcs11Wrapper.openSession(slotLabel);
     }
+
+
 
     @Override
     public HmcProtocol.Response doLogic(HmcProtocol.Request request, long sessionId, String transId) {
@@ -88,7 +81,7 @@ public class SubTask implements ITask {
         CustomLog log = new CustomLog(transId);
         if (StringUtils.isEmpty(keyLabel)) {
             log.error("findObj keyLabel is empty");
-            throw new BusinessException(ErrorCode.INVALID_KEY_LABEL);
+            throw new CasException(ErrorCode.INVALID_KEY_LABEL);
         }
         if(!StringUtils.equalsAnyIgnoreCase(PropertyReader.getProperty("profile"), "prod", "stage")){
             keyLabel = "TEST_" + keyLabel;
@@ -105,17 +98,17 @@ public class SubTask implements ITask {
 
         String algorithm = pkcsMechanism.getAlgorithm();
         if (StringUtils.equals(algorithm, Constants.NOT_USE)) {
-            throw new BusinessException(ErrorCode.NOT_USE_ALGORITHM);
+            throw new CasException(ErrorCode.NOT_USE_ALGORITHM);
         }
-        log.info("createObjJce keyvalue[{}]: {} ,algorithm: {}", keyValue.length, HexUtils.toHexString(keyValue), algorithm);
+        log.debug("createObjJce keyValue[{}]: {} ,algorithm: {}", keyValue.length, HexUtils.toHexString(keyValue), algorithm);
         return new SecretKeySpec(keyValue, algorithm);
     }
 
     protected byte[] encryptJce(byte[] plainData, IPkcsMechanism pkcsMechanism, SecretKeySpec key, String padding) {
         Provider bc = Security.getProvider("BC");
-        log.info("plainData[{}]: {}", plainData.length, HexUtils.toHexString(plainData));
+        log.debug("plainData[{}]: {}", plainData.length, HexUtils.toHexString(plainData));
         if (bc == null) {
-            log.info("add BouncyCastleProvider");
+            log.debug("add BouncyCastleProvider");
             Security.addProvider(new BouncyCastleProvider());
         }
         try {
@@ -138,7 +131,7 @@ public class SubTask implements ITask {
 
         } catch (Exception e) {
             log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.C_ENCRYPT_JCE);
+            throw new CasException(ErrorCode.C_ENCRYPT_JCE);
         }
     }
 
@@ -163,7 +156,7 @@ public class SubTask implements ITask {
 
         } catch (Exception e) {
             log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.C_DECRYPT_JCE);
+            throw new CasException(ErrorCode.C_DECRYPT_JCE);
         }
     }
 
@@ -182,9 +175,7 @@ public class SubTask implements ITask {
 
     protected byte[] encryptDataWithIv(long sessionId, long encKey, byte[] plainData, IPkcsMechanism pkcsMechanism, byte[] iv) {
         CK_MECHANISM ckMechanism = IPkcsMechanism.makeMechanism(pkcsMechanism, iv);
-        byte[] bEncData = pkcs11Wrapper.encrypt(sessionId, ckMechanism, encKey, plainData);
-        log.info("encryptData bEncData: {}", HexUtils.toHexString(bEncData));
-        return bEncData;
+        return pkcs11Wrapper.encrypt(sessionId, ckMechanism, encKey, plainData);
     }
 
     protected SecretKeySpec encAndMakeKey(long sessionId, long encKey, byte[] plainData, IPkcsMechanism pkcsMechanism) {
@@ -195,8 +186,8 @@ public class SubTask implements ITask {
 
     protected SecretKeySpec makeKeyHandleWithEncData(byte[] bEncData, IPkcsMechanism pkcsMechanism)  {
         if (StringUtils.equals(pkcsMechanism.getParityYn(), Constants.YES)) {
-            log.info("bEncData 적용 전: {}", HexUtils.toHexString(bEncData));
-            log.info("makeOddParity 적용");
+            log.debug("bEncData 적용 전: {}", HexUtils.toHexString(bEncData));
+            log.debug("makeOddParity 적용");
             bEncData = HexUtils.makeOddParity(bEncData);
         }
         return createObjJce(bEncData, pkcsMechanism);

@@ -4,7 +4,7 @@ package com.ubivelox.iccard.task.a2;
 import com.ubivelox.iccard.annotation.TaskData;
 import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
-import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.CasException;
 import com.ubivelox.iccard.exception.ErrorCode;
 import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
 import com.ubivelox.iccard.task.AxTask;
@@ -80,7 +80,7 @@ public class A2Task extends AxTask {
                     log.info("{} 번째 시도 CC 검증 실패 CC= [{}], ccMac =[{}]", i+1, a2Req.getCc(), HexUtils.toHexString(ccMac));
                     // 실패시 다음키로 재시도
                     if (i == keyList.length -1) {
-                        throw new BusinessException(ErrorCode.AUTH_FAIL);
+                        throw new CasException(ErrorCode.AUTH_FAIL);
                     }
                 } else {
                     // 성공시 종료
@@ -144,11 +144,11 @@ public class A2Task extends AxTask {
             HmcProtocol.Response response = request.generateResponse(request, Constants.SUCCESS, resultMap);
             log.info("RESPONSE DATA {}", response);
             return response;
-        } catch (BusinessException e) {
+        } catch (CasException e) {
             log.error(e.getMessage(), e);
             HmcProtocol.Response responseError = request.generateError(e.getErrorCode().getCode());
             log.info("RESPONSE ERROR DATA {}", responseError);
-            return responseError;
+            throw e;
         }
     }
 }

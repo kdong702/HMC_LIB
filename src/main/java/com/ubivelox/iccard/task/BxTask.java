@@ -2,7 +2,7 @@ package com.ubivelox.iccard.task;
 
 import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
-import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.CasException;
 import com.ubivelox.iccard.exception.ErrorCode;
 import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
 import com.ubivelox.iccard.util.ByteUtils;
@@ -46,7 +46,7 @@ public class BxTask extends SubTask{
             String charset = hasKorean ? "KSC5601" : "US-ASCII";
             return input.getBytes(charset);
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.ERR_NOT_VALID_CHARSET);
+            throw new CasException(ErrorCode.ERR_NOT_VALID_CHARSET);
         }
 
     }

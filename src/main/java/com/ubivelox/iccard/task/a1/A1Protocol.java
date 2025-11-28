@@ -3,9 +3,8 @@ package com.ubivelox.iccard.task.a1;
 import com.ubivelox.iccard.annotation.FieldData;
 import com.ubivelox.iccard.annotation.MaskData;
 import com.ubivelox.iccard.common.Constants;
-import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.CasException;
 import com.ubivelox.iccard.exception.ErrorCode;
-import com.ubivelox.iccard.task.a2.A2Protocol;
 import com.ubivelox.iccard.task.HmcProtocol;
 import lombok.*;
 
@@ -38,7 +37,7 @@ public class A1Protocol {
             String scpType = this.getScp();
 
             if (!scpType.equals("01") && !scpType.equals("02")) {
-                throw new BusinessException(ErrorCode.INVALID_SCP_TYPE);
+                throw new CasException(ErrorCode.INVALID_SCP_TYPE);
             }
 
             if (scpType.equals("01") ) {

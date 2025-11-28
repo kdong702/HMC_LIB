@@ -6,18 +6,12 @@
 
 	<property name="LOG_PATTERN" value="%-3level [%d{yyyy-MM-dd HH:mm:ss.SSS}] %logger{5} - %msg %n" />
 
-	<property resource="hsm_lib.properties"/>
-	<property name="LOG_PATH" value="${hsm.log.path}" />
-	<property name="LOG_FILE_NAME" value="${hsm.log.fileName}" />
-	<property name="LOG_MAX_DAY" value="${hsm.log.maxDay}" />
-	<property name="LOG_MAX_FILE_SIZE" value="${hsm.log.maxFileSize}" />
-
 	<!-- FILE Appender (오직 com.ubivelox.iccard 로그를 위해 사용) -->
 	<!--ICARD 전용 파일 appender -->
 	<appender name="ICCARD" class="ch.qos.logback.core.rolling.RollingFileAppender">
-		<file>./hsm_logs/iccard.log</file>
+		<file>./cas_logs/iccard.log</file>
 		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-			<fileNamePattern>./hsm_logs/iccard_%d{yyyyMMdd}_%i.log.zip</fileNamePattern>
+			<fileNamePattern>./cas_logs/iccard_%d{yyyyMMdd}_%i.log.zip</fileNamePattern>
 			<maxHistory>30</maxHistory>
 			<timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
 				<maxFileSize>100MB</maxFileSize>

@@ -4,7 +4,7 @@ package com.ubivelox.iccard.task.c1;
 import com.ubivelox.iccard.annotation.TaskData;
 import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
-import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.CasException;
 import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
 import com.ubivelox.iccard.task.CxTask;
 import com.ubivelox.iccard.task.HmcProtocol;
@@ -72,16 +72,17 @@ public class C1Task extends CxTask {
             log.info("RESPONSE DATA {}", response);
 
             return response;
-        } catch (BusinessException e) {
+        } catch (CasException e) {
             log.error(e.getMessage(), e);
             HmcProtocol.Response responseError = request.generateError(e.getErrorCode().getCode());
             log.info("RESPONSE ERROR DATA {}", responseError);
-            return responseError;
+            throw e;
         }
     }
 
     private SecretKeySpec encAndMakeKey(String plain, SecretKeySpec tempKey, IPkcsMechanism iPkcsMechanism, String padding, CustomLog log) {
         byte[] bPlain = HexUtils.toByteArray(plain);
+        log.info("bPlain : {}", HexUtils.toHexString(bPlain));
         byte[] encPlain = encryptJce(bPlain, iPkcsMechanism , tempKey, padding);
         log.info("encPlain : {}", HexUtils.toHexString(encPlain));
         return makeKeyHandleWithEncData(encPlain, iPkcsMechanism);

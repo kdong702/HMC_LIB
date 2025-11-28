@@ -3,7 +3,7 @@ package com.ubivelox.iccard.task;
 
 import com.ubivelox.iccard.annotation.FieldData;
 import com.ubivelox.iccard.annotation.MaskData;
-import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.CasException;
 import com.ubivelox.iccard.exception.ErrorCode;
 import com.ubivelox.iccard.util.HexUtils;
 import com.ubivelox.iccard.util.StreamReader;
@@ -57,7 +57,7 @@ public final class HmcProtocol {
                     try {
                         value = (String) field.get(this);
                     } catch (IllegalAccessException e) {
-                        throw new BusinessException(ErrorCode.INVALID_PROTOCOL_LENGTH);
+                        throw new CasException(ErrorCode.INVALID_PROTOCOL_LENGTH);
                     }
                     int length = fieldData.length();
                     sw.write(value, length);

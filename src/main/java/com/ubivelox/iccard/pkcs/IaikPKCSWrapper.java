@@ -2,11 +2,8 @@ package com.ubivelox.iccard.pkcs;
 
 
 import com.ubivelox.iccard.common.Constants;
-import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.CasException;
 import com.ubivelox.iccard.exception.ErrorCode;
-import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
-import com.ubivelox.iccard.pkcs.constant.ITemplate;
-import com.ubivelox.iccard.util.HexUtil;
 import iaik.pkcs.pkcs11.wrapper.CK_ATTRIBUTE;
 import iaik.pkcs.pkcs11.wrapper.CK_MECHANISM;
 import iaik.pkcs.pkcs11.wrapper.PKCS11;
@@ -18,8 +15,6 @@ import org.xipki.pkcs11.wrapper.PKCS11Exception;
 import org.xipki.pkcs11.wrapper.PKCS11Module;
 
 import java.util.HashMap;
-
-import static org.xipki.pkcs11.wrapper.PKCS11Constants.CKM_RSA_PKCS_KEY_PAIR_GEN;
 
 
 @Getter
@@ -55,15 +50,15 @@ public class IaikPKCSWrapper {
             initSlotMap(slotPassword, copySlotMap);
         } catch (Exception e) {
             log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.ERR_HSM_INIT);
+            throw new CasException(ErrorCode.ERR_HSM_INIT);
         } catch (Throwable e) {
-            throw new BusinessException(ErrorCode.ERR_HSM_FINALIZE);
+            throw new CasException(ErrorCode.ERR_HSM_FINALIZE);
         }
     }
 
     public void checkInit() {
         if (pkcs11 == null || pkcs11api == null) {
-            throw new BusinessException(ErrorCode.INIT_FIRST);
+            throw new CasException(ErrorCode.INIT_FIRST);
         }
     }
 
@@ -122,9 +117,10 @@ public class IaikPKCSWrapper {
                 pkcs11api.finalize();
             }
         } catch (PKCS11Exception e) {
-            throw new BusinessException(ErrorCode.ERR_HSM_FINALIZE);
+            log.error(e.getMessage(), e);
+            throw new CasException(ErrorCode.ERR_HSM_FINALIZE);
         } catch (Throwable e) {
-            throw new BusinessException(ErrorCode.ERR_HSM_FINALIZE);
+            throw new CasException(ErrorCode.ERR_HSM_FINALIZE);
         }
     }
 
@@ -135,7 +131,7 @@ public class IaikPKCSWrapper {
             sessionId = pkcs11api.C_OpenSession(slotId, PKCS11Constants.CKF_RW_SESSION | PKCS11Constants.CKF_SERIAL_SESSION, null, null);
             log.debug("Slot OpenSession 성공 ={}, sessionId={}", slotLabel, sessionId);
         } catch (PKCS11Exception e) {
-            throw new BusinessException(ErrorCode.ERR_C_OPEN_SESSION ,String.format("[%s]: Slot openSession 실패하였습니다.", slotLabel));
+            throw new CasException(ErrorCode.ERR_C_OPEN_SESSION ,String.format("[%s]: Slot openSession 실패하였습니다.", slotLabel));
         }
         return sessionId;
     }
@@ -157,13 +153,13 @@ public class IaikPKCSWrapper {
                 slot.setSessionId(0);
                 slot.setStatus(Constants.NO);
                 closeSession(sessionId);
-                throw new BusinessException(ErrorCode.ERR_C_LOGIN, String.format("[%s]: Slot PIN LOCKED 상태입니다. 잠시후 다시 시도해주세요.", slotLabel));
+                throw new CasException(ErrorCode.ERR_C_LOGIN, String.format("[%s]: Slot PIN LOCKED 상태입니다. 잠시후 다시 시도해주세요.", slotLabel));
             }
             log.error(pe.getMessage());
             slot.setSessionId(0);
             slot.setStatus(Constants.NO);
             closeSession(sessionId);
-            throw new BusinessException(ErrorCode.ERR_C_LOGIN, String.format("[%s]: Slot Login 실패하였습니다.", slotLabel));
+            throw new CasException(ErrorCode.ERR_C_LOGIN, String.format("[%s]: Slot Login 실패하였습니다.", slotLabel));
 
         }
         return sessionId;
@@ -175,7 +171,7 @@ public class IaikPKCSWrapper {
             pkcs11api.C_CloseSession(sessionId);
         } catch (PKCS11Exception pe) {
             log.error(pe.getMessage(), pe);
-            throw new BusinessException(ErrorCode.ERR_C_CLOSE_SESSION, String.format("[%s]: closeSession 실패하였습니다.", sessionId));
+            throw new CasException(ErrorCode.ERR_C_CLOSE_SESSION, String.format("[%s]: closeSession 실패하였습니다.", sessionId));
         }
     }
 
@@ -188,11 +184,11 @@ public class IaikPKCSWrapper {
             if (keyList.length > 0) {
                 key = keyList[0];
             } else {
-                throw new BusinessException(ErrorCode.ERR_C_FIND_OBJECTS, "key가 존재하지 않습니다.");
+                throw new CasException(ErrorCode.ERR_C_FIND_OBJECTS, "key가 존재하지 않습니다.");
             }
         } catch (PKCS11Exception e) {
             log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.ERR_C_FIND_OBJECTS, "key 리스트 조회에 실패했습니다.");
+            throw new CasException(ErrorCode.ERR_C_FIND_OBJECTS, "key 리스트 조회에 실패했습니다.");
         }
         return key;
     }
@@ -204,7 +200,7 @@ public class IaikPKCSWrapper {
             result = pkcs11api.C_Encrypt(sessionId, plainData);
         } catch (PKCS11Exception e) {
             log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.ERR_C_ENCRYPT);
+            throw new CasException(ErrorCode.ERR_C_ENCRYPT);
         }
         return result;
     }
@@ -216,7 +212,7 @@ public class IaikPKCSWrapper {
             result = pkcs11api.C_Decrypt(sessionId, encData);
         } catch (PKCS11Exception e) {
             log.error(e.getMessage(), e);
-            throw new BusinessException(ErrorCode.ERR_C_DECRYPT);
+            throw new CasException(ErrorCode.ERR_C_DECRYPT);
         }
         return result;
     }

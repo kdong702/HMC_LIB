@@ -1,15 +1,11 @@
 package com.ubivelox.iccard.pkcs.constant;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.ubivelox.iccard.exception.BusinessException;
 import com.ubivelox.iccard.util.HexUtil;
 import iaik.pkcs.pkcs11.wrapper.CK_ATTRIBUTE;
 import lombok.extern.slf4j.Slf4j;
 import org.xipki.pkcs11.wrapper.PKCS11Constants;
-
-import java.util.HashMap;
 
 import static org.xipki.pkcs11.wrapper.PKCS11Constants.*;
 

@@ -3,7 +3,7 @@ package com.ubivelox.iccard.task;
 
 import com.ubivelox.iccard.annotation.TaskData;
 import com.ubivelox.iccard.common.CustomLog;
-import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.CasException;
 import com.ubivelox.iccard.exception.ErrorCode;
 import com.ubivelox.iccard.util.PropertyReader;
 import com.ubivelox.iccard.util.StreamReader;
@@ -37,12 +37,7 @@ public class HmcContext<T extends HmcProtocol.Request> {
             request = tclass.getDeclaredConstructor().newInstance();
             request.read(new StreamReader(hexData, charset));
         } catch (Exception e) {
-            log.error(e.getMessage(), e);
-            HmcProtocol.Response error = request.generateError(ErrorCode.INVALID_PROTOCOL_LENGTH.getCode());
-            String errorResponse = error.getResult(charset);
-            log.info("RESULT({})= [{}]", errorResponse.length(),errorResponse);
-            log.info("============================ {} ({}) Task End ============================", taskName, taskCd);
-            return errorResponse;
+            extracted(log, e, ErrorCode.INVALID_PROTOCOL_LENGTH, taskName, taskCd);
         }
 
         long sessionId = 0;
@@ -51,41 +46,43 @@ public class HmcContext<T extends HmcProtocol.Request> {
             sessionId = itask.openSession(slotLabel);
             log.info("Open Session ID : {}", sessionId);
         } catch (Exception e) {
-            log.error(e.getMessage(), e);
-            String errorCode;
-            if (e instanceof BusinessException) {
-                errorCode = ((BusinessException) e).getErrorCode().getCode();
-            } else {
-                errorCode = ErrorCode.ERR_C_OPEN_SESSION.getCode();
-            }
-            HmcProtocol.Response error = request.generateError(errorCode);
-            String errorResponse = error.getResult(charset);
-            log.info("RESULT({})= [{}]", errorResponse.length(), errorResponse);
-            log.info("============================ {} ({}) Task End ============================", taskName, taskCd);
-            return errorResponse;
+            extracted(log, e, ErrorCode.ERR_C_OPEN_SESSION, taskName, taskCd);
         }
 
 
         log.info("REQUEST DATA {}", request);
-        HmcProtocol.Response response = itask.doLogic(request, sessionId, transId);
-        String result = response.getResult(charset);
-        log.info("MASK RESULT= [{}]", response.maskData());
-        log.info("RESULT({})= [{}]", result.length(),result);
-        log.info("============================ {} ({}) Task End ============================", taskName, taskCd);
+        String result = "";
+        try {
+            HmcProtocol.Response response = itask.doLogic(request, sessionId, transId);
+            result = response.getResult(charset);
+            log.info("MASK RESULT= [{}]", response.maskData());
+            log.info("RESULT({})= [{}]", result.length(),result);
+            log.info("============================ {} ({}) Task End ============================", taskName, taskCd);
+        } catch (Exception e) {
+            extracted(log, e, ErrorCode.ERR_TASK_PROCESS, taskName, taskCd);
+        }
+
         try {
             itask.closeSession(sessionId);
             log.info("Close Session ID : {}", sessionId);
-        } catch (BusinessException e) {
-            log.error(e.getMessage(), e);
-            HmcProtocol.Response error = request.generateError(ErrorCode.ERR_C_CLOSE_SESSION.getCode());
-            String errorResponse = error.getResult(charset);
-            log.info("RESULT({})= [{}]", errorResponse.length(),errorResponse);
-            log.info("============================ {} ({}) Task End ============================", taskName, taskCd);
-            return errorResponse;
+        } catch (Exception e) {
+            extracted(log, e, ErrorCode.ERR_C_CLOSE_SESSION, taskName, taskCd);
         }
         return result;
 
 
+    }
+
+    private static void extracted(CustomLog log, Exception e, ErrorCode errCCloseSession, String taskName, String taskCd) {
+        log.error(e.getMessage(), e);
+        log.info("============================ {} ({}) Task Error ============================", taskName, taskCd);
+        ErrorCode errorCode;
+        if (e instanceof CasException) {
+            errorCode = ((CasException) e).getErrorCode();
+        } else {
+            errorCode = errCCloseSession;
+        }
+        throw new CasException(errorCode, e);
     }
 
 }

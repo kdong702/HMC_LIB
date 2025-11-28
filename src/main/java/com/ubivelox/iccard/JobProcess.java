@@ -2,6 +2,8 @@ package com.ubivelox.iccard;
 
 import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.LogbackFallbackInitializer;
+import com.ubivelox.iccard.exception.CasException;
+import com.ubivelox.iccard.exception.ErrorCode;
 import com.ubivelox.iccard.task.HmcContext;
 import com.ubivelox.iccard.task.SubTask;
 import com.ubivelox.iccard.task.a1.A1Protocol;
@@ -27,30 +29,44 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 @Slf4j
 @NoArgsConstructor
 public class JobProcess {
+
+    private static final JobProcess INSTANCE = new JobProcess();
+    private final AtomicBoolean initialized = new AtomicBoolean(false);
+
     protected String charset = PropertyReader.getProperty("character.encoding");
 
-    public Long initLibrary() {
-        LogbackFallbackInitializer.init();
-        SubTask subTask = new SubTask();
-        String test = subTask.initModule();
-        if (StringUtils.equals(Constants.YES, test)) {
-            return 1L;
-        } else {
-            return -1L;
+    public static JobProcess getInstance() {
+        if (INSTANCE.initialized.compareAndSet(false, true)) {
+            INSTANCE.initLibrary();
         }
+        return INSTANCE;
     }
 
-    public Long finalLibrary() {
-        SubTask subTask = new SubTask();
-        String test = subTask.finalModule();
-        if (StringUtils.equals(Constants.YES, test)) {
-            return 1L;
-        } else {
-            return -1L;
+    public void initLibrary() {
+        try {
+            log.info("===== JobProcess initLibrary =====");
+            LogbackFallbackInitializer.init();
+            SubTask subTask = new SubTask();
+            subTask.initModule();
+        } catch (Exception e) {
+            throw new CasException(ErrorCode.ERR_HSM_INIT);
         }
+
+    }
+
+    public void finalLibrary() {
+        try {
+            SubTask subTask = new SubTask();
+            subTask.finalModule();
+        } catch (Exception e) {
+            throw new CasException(ErrorCode.ERR_HSM_FINALIZE);
+        }
+
     }
 
     public String processA1(String request) {

@@ -4,7 +4,7 @@ package com.ubivelox.iccard.task.b2;
 import com.ubivelox.iccard.annotation.TaskData;
 import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
-import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.CasException;
 import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
 import com.ubivelox.iccard.task.BxTask;
 import com.ubivelox.iccard.task.HmcProtocol;
@@ -50,11 +50,11 @@ public class B2Task extends BxTask {
             HmcProtocol.Response response = request.generateResponse(request, Constants.SUCCESS, resultMap);
             log.info("RESPONSE DATA {}", response);
             return response;
-        } catch (BusinessException e) {
+        } catch (CasException e) {
             log.error(e.getMessage(), e);
             HmcProtocol.Response responseError = request.generateError(e.getErrorCode().getCode());
             log.info("RESPONSE ERROR DATA {}", responseError);
-            return responseError;
+            throw e;
         }
     }
 

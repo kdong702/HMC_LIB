@@ -4,12 +4,11 @@ package com.ubivelox.iccard.task.a1;
 import com.ubivelox.iccard.annotation.TaskData;
 import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
-import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.CasException;
 import com.ubivelox.iccard.exception.ErrorCode;
 import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
 import com.ubivelox.iccard.task.AxTask;
 import com.ubivelox.iccard.task.HmcProtocol;
-import com.ubivelox.iccard.util.ByteUtils;
 import com.ubivelox.iccard.util.HexUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -45,7 +44,9 @@ public class A1Task extends AxTask {
 
                 crn = a1Req.getCrn();
                 encSkData = makeSkDataWithCrnHrn(crn, trn);
+                log.info("encSkData[{}] = {}", encSkData.length, HexUtils.toHexString(encSkData));
                 macSkData = makeSkDataWithCrnHrn(crn, trn);
+                log.info("macSkData[{}] = {}", macSkData.length, HexUtils.toHexString(macSkData));
                 sessionKeyMechanism = IPkcsMechanism.DES3_ECB;
                 type = 1;
             } else {
@@ -56,7 +57,9 @@ public class A1Task extends AxTask {
                 String sc = a1Req.getSc();
                 crn = sc + a1Req.getCrn() ;
                 encSkData = makeSkDataWithTag(sc, 1);
+                log.info("encSkData[{}] = {}", encSkData.length, HexUtils.toHexString(encSkData));
                 macSkData = makeSkDataWithTag(sc, 2);
+                log.info("macSkData[{}] = {}", macSkData.length, HexUtils.toHexString(macSkData));
                 sessionKeyMechanism = IPkcsMechanism.DES3_CBC;
                 type = 2;
             }
@@ -74,7 +77,7 @@ public class A1Task extends AxTask {
                     log.info("{} 번째 시도 CC 검증 실패 CC= [{}], ccMac =[{}]", i+1, a1Req.getCc(), HexUtils.toHexString(ccMac));
                     // 실패시 다음키로 재시도
                     if (i == keyList.length -1) {
-                        throw new BusinessException(ErrorCode.AUTH_FAIL);
+                        throw new CasException(ErrorCode.AUTH_FAIL);
                     }
                 } else {
                     // 성공시 종료
@@ -96,11 +99,11 @@ public class A1Task extends AxTask {
             HmcProtocol.Response response = request.generateResponse(request, Constants.SUCCESS, resultMap);
             log.info("RESPONSE DATA {}", response);
             return response;
-        } catch (BusinessException e) {
+        } catch (CasException e) {
             log.error(e.getMessage(), e);
             HmcProtocol.Response responseError = request.generateError(e.getErrorCode().getCode());
             log.info("RESPONSE ERROR DATA {}", responseError);
-            return responseError;
+            throw e;
         }
     }
 

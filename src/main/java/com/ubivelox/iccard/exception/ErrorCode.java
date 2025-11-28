@@ -21,6 +21,7 @@ public enum ErrorCode {
     ERR_NOT_VALID_CHARSET               ("HD300011",   "문자열 형식이 잘못되어 있습니다."),
     ERR_HSM_INIT                        ("HD300012",   "HSM 초기화에 실패하였습니다."),
     ERR_HSM_FINALIZE                    ("HD300013",   "HSM 종료에 실패하였습니다."),
+    ERR_TASK_PROCESS                    ("HD300014",   "Task 처리 중 에러가 발생하였습니다."),
 
     // PKCS 에러,
 

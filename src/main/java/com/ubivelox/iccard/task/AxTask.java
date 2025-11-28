@@ -2,7 +2,7 @@ package com.ubivelox.iccard.task;
 
 import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.common.CustomLog;
-import com.ubivelox.iccard.exception.BusinessException;
+import com.ubivelox.iccard.exception.CasException;
 import com.ubivelox.iccard.exception.ErrorCode;
 import com.ubivelox.iccard.pkcs.constant.IPkcsMechanism;
 import com.ubivelox.iccard.util.ByteUtils;
@@ -24,7 +24,7 @@ public class AxTask extends SubTask{
     protected byte[] S002 = {(byte) 0x01, (byte) 0x01};
     protected byte[] S003 = {(byte) 0x01, (byte) 0x81};
 
-    protected byte[] makeDkDataWithTag(String kdd, int tagFlag) throws BusinessException {
+    protected byte[] makeDkDataWithTag(String kdd, int tagFlag, CustomLog log) throws CasException {
         byte[] startTag;
         byte[] endTag;
         if (tagFlag == 1) {
@@ -37,7 +37,7 @@ public class AxTask extends SubTask{
             startTag = F003;
             endTag = endF003Tag;
         } else {
-            throw new BusinessException(ErrorCode.INVALID_TAG_FLAG);
+            throw new CasException(ErrorCode.INVALID_TAG_FLAG);
         }
 
         byte[] bKdd = HexUtils.toByteArray(kdd);
@@ -53,7 +53,7 @@ public class AxTask extends SubTask{
         return bDKData;
     }
 
-    protected byte[] makeSkDataWithTag(String sc, int tagFlag) throws BusinessException {
+    protected byte[] makeSkDataWithTag(String sc, int tagFlag) throws CasException {
         byte[] sTag;
 
         if (tagFlag == 1) {
@@ -63,16 +63,16 @@ public class AxTask extends SubTask{
         } else if (tagFlag == 3) {
             sTag = S003;
         } else {
-            throw new BusinessException(ErrorCode.INVALID_TAG_FLAG);
+            throw new CasException(ErrorCode.INVALID_TAG_FLAG);
         }
 
         byte[] bSc = HexUtils.toByteArray(sc);
-        log.info("bSc: {}", HexUtils.toHexString(bSc));
+        log.debug("bSc: {}", HexUtils.toHexString(bSc));
         byte[] skData = new byte[16];
         System.arraycopy(sTag, 0, skData, 0, 2);
         System.arraycopy(bSc, 0, skData, 2, 2);
         byte[] sk24Data = ByteUtils.copyArray(skData, skData, 16, 8);
-        log.info("sk24Data[{}] = {}", sk24Data.length, HexUtils.toHexString(sk24Data));
+        log.debug("sk24Data[{}] = {}", sk24Data.length, HexUtils.toHexString(sk24Data));
         return sk24Data;
     }
 
@@ -86,13 +86,13 @@ public class AxTask extends SubTask{
         System.arraycopy(bHRN, 4, skData, 12, 4);
         log.debug("skData: {}", HexUtils.toHexString(skData));
         byte[] sk24Data = ByteUtils.copyArray(skData, skData, 16, 8);
-        log.info("skData[{}] = {}", skData.length, HexUtils.toHexString(skData));
+        log.debug("skData[{}] = {}", skData.length, HexUtils.toHexString(skData));
         return sk24Data;
     }
 
     protected byte[] makeCcDataWithPad(String crn, String hrn) {
         byte[] bCardDerivationData = ByteUtils.copyToByteArrayWithPad(crn, hrn, 8, 8, 24);
-        log.info("bCardDerivationData: {}", HexUtils.toHexString(bCardDerivationData));
+        log.debug("bCardDerivationData: {}", HexUtils.toHexString(bCardDerivationData));
 
         return bCardDerivationData;
     }
@@ -110,6 +110,7 @@ public class AxTask extends SubTask{
     }
 
     protected SecretKeySpec makeSessionKey(byte[] skData, SecretKeySpec encDkKey, IPkcsMechanism mechanism, CustomLog log) {
+        log.info("skData[{}] = {}", skData.length, HexUtils.toHexString(skData));
         byte[] encSkData = encryptJce(skData, mechanism, encDkKey, Constants.NoPadding);
         log.info("encSkData[{}] = {}", encSkData.length, HexUtils.toHexString(encSkData));
         // TODO Chiper 는 DDES 가 없으므로 3DES 로 처리 후 가공 필요
@@ -119,7 +120,7 @@ public class AxTask extends SubTask{
     }
 
     protected SecretKeySpec makeDkKey(long sessionId, String kdd, long encKeyId, CustomLog log, int tagFlag) {
-        byte[] encDkData = makeDkDataWithTag(kdd, tagFlag);
+        byte[] encDkData = makeDkDataWithTag(kdd, tagFlag, log);
         log.info("encDkData[{}] = {}",encDkData.length, HexUtils.toHexString(encDkData));
         byte[] encDk24Data = ByteUtils.copyArray(encDkData, encDkData, 16, 8);
         return encAndMakeKey(sessionId, encKeyId, encDk24Data, IPkcsMechanism.DES2_DES3_ECB);
@@ -147,10 +148,11 @@ public class AxTask extends SubTask{
             byte[] temp = new byte[8];
             byte[] encXTemp = new byte[8];
             SecretKeySpec aHandle = createObjJce(ByteUtils.cutByteArray(sessionKey.getEncoded(), 0, 8), IPkcsMechanism.DES_ECB);
-
+            log.info("aHandle: {}", HexUtils.toHexString(aHandle.getEncoded()));
             for (int idx = 0; idx < bMacPad.length; idx += IPkcsMechanism.DES_ECB.getBlockSize()) {
                 System.arraycopy(bMacPad, idx, temp, 0, 8);
                 encXTemp = ByteUtils.xor(temp, encData);
+                log.info("XOR temp and encData: {}", HexUtils.toHexString(encXTemp));
                 encData = encryptJce(encXTemp, IPkcsMechanism.DES_ECB, aHandle, Constants.NoPadding);
             }
             byte[] mac = encryptJce(encXTemp, IPkcsMechanism.DES3_ECB, sessionKey, Constants.NoPadding);

@@ -13,12 +13,19 @@ import java.util.Properties;
 public class PropertyReader {
 
     private static final Properties PROPS = new Properties();
-    private static final String NAME = "hsm_lib.properties";
+    private static String NAME = "cas.properties";
     private PropertyReader() {}
 
     private static synchronized void loadIfNeeded() {
         if (!PROPS.isEmpty()) return;
 
+        // 0) JVM 옵션으로 지정된 cas.config 파일명 우선 적용 (예: -D.cas.config=cas_L.properties)
+        String casConfig = System.getProperty("cas.config");
+        if (casConfig != null && !casConfig.trim().isEmpty()) {
+            String target = casConfig.trim();
+            log.info("Using cas.config JVM property to load properties: {}", target);
+            NAME = target;
+        }
 
         // 2) 클래스패스 - 여러 방식으로 시도 (특히 Spring Boot fat JAR / nested JAR 대응)
         // 2.1 현재 클래스의 리소스 (같은 JAR이나 nested JAR에서 찾기 용이)
@@ -77,6 +84,8 @@ public class PropertyReader {
             return false;
         }
     }
+
+
 
     public static String getProperty(String key) {
         loadIfNeeded();
