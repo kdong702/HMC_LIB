@@ -14,6 +14,7 @@ import org.xipki.pkcs11.wrapper.PKCS11Constants;
 import org.xipki.pkcs11.wrapper.PKCS11Exception;
 import org.xipki.pkcs11.wrapper.PKCS11Module;
 
+import java.io.IOException;
 import java.util.HashMap;
 
 
@@ -43,7 +44,11 @@ public class IaikPKCSWrapper {
                 pkcs11api = pkcs11.getPKCS11Module();
                 pkcs11api.finalize();
             }
-            pkcs11 = PKCS11Module.getInstance(libFile); // 처음 시작할때,
+            try {
+                pkcs11 = PKCS11Module.getInstance(libFile); // 처음 시작할때,
+            } catch (IOException e) {
+                throw new CasException(ErrorCode.LIB_ERROR);
+            }
             pkcs11api = pkcs11.getPKCS11Module();
             pkcs11.initialize();
 

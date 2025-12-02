@@ -2,9 +2,11 @@ package com.ubivelox.iccard.exception;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 
 @Getter
 @RequiredArgsConstructor
+@ToString
 public enum ErrorCode {
 
     // TASK 에러
@@ -22,7 +24,7 @@ public enum ErrorCode {
     ERR_HSM_INIT                        ("HD300012",   "HSM 초기화에 실패하였습니다."),
     ERR_HSM_FINALIZE                    ("HD300013",   "HSM 종료에 실패하였습니다."),
     ERR_TASK_PROCESS                    ("HD300014",   "Task 처리 중 에러가 발생하였습니다."),
-
+    LIB_ERROR                           ("HD300015",   "PKCS11 Library 에러가 발생하였습니다. 라이브러리 경로를 확인해주세요."),
     // PKCS 에러,
 
 
@@ -69,11 +71,6 @@ public enum ErrorCode {
 
     public String getMessage(String message) {
         return message;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("%s (%d)", this.name(), this.getCode());
     }
 
 }
