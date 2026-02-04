@@ -4,15 +4,14 @@ package com.ubivelox.iccard.pkcs;
 import com.ubivelox.iccard.common.Constants;
 import com.ubivelox.iccard.exception.CasException;
 import com.ubivelox.iccard.exception.ErrorCode;
+import com.ubivelox.iccard.util.PropertyReader;
 import iaik.pkcs.pkcs11.wrapper.CK_ATTRIBUTE;
 import iaik.pkcs.pkcs11.wrapper.CK_MECHANISM;
 import iaik.pkcs.pkcs11.wrapper.PKCS11;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.xipki.pkcs11.wrapper.PKCS11Constants;
-import org.xipki.pkcs11.wrapper.PKCS11Exception;
-import org.xipki.pkcs11.wrapper.PKCS11Module;
+import org.xipki.pkcs11.wrapper.*;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -75,7 +74,19 @@ public class IaikPKCSWrapper {
 
             String slotDesc = (slots[i].getSlotInfo().getSlotDescription()).trim();
 
-            String slotLabel = slots[i].getToken().getTokenInfo().getLabel();
+            Token token = slots[i].getToken();
+            if (token == null) {
+                log.info("token is null" + slotDesc + ", ID:" + slotId);
+                continue;
+            }
+
+            TokenInfo tokenInfo = token.getTokenInfo();
+            if (tokenInfo == null) {
+                log.info("tokenInfo is null" + slotDesc + ", ID:" + slotId);
+                continue;
+            }
+
+            String slotLabel = tokenInfo.getLabel();
             log.info("Slot Label: " + slotLabel + ", Slot Desc: " + slotDesc + ", ID:" + slotId);
             // TODO 제외영역 properties로 관리하기
             if (StringUtils.isEmpty(slotLabel)) {
